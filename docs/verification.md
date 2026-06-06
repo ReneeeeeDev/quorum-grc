@@ -1,0 +1,34 @@
+# Verification
+
+## Backend
+
+```bash
+cd backend
+python -m compileall app
+python scripts/smoke_check.py
+uvicorn app.main:app --reload
+```
+
+Smoke flow:
+
+1. Start PostgreSQL and Redis with `docker compose up -d postgres redis`.
+2. Start the backend.
+3. Log in with `admin@gmp.local` / `Admin@123`.
+4. Create a policy, meeting, decision, and action item.
+5. Confirm `/api/reports` updates and `/api/audit-logs` records mutating actions.
+
+## Frontend
+
+```bash
+cd frontend
+npm install
+npm run typecheck
+npm run build
+```
+
+Smoke flow:
+
+1. Start the frontend with `npm run dev`.
+2. Sign in using the admin demo account.
+3. Navigate through Dashboard, Policies, Committees, Meetings, Decisions, Actions, Reports, Audit Logs, and Settings.
+4. Create records through each form and confirm tables update.

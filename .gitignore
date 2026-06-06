@@ -11,6 +11,7 @@ node_modules/
 out/
 dist/
 npm-debug.log*
+*.tsbuildinfo
 
 # Env
 .env
@@ -27,4 +28,3 @@ Thumbs.db
 # Docker/data
 postgres-data/
 redis-data/
-

@@ -1,11 +1,11 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 
 from app.models import Role
 from app.schemas.common import OrmModel
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    email: str
     password: str
 
 
@@ -17,7 +17,6 @@ class TokenResponse(BaseModel):
 class UserRead(OrmModel):
     id: int
     name: str
-    email: EmailStr
+    email: str
     role: Role
     department_id: int | None
-

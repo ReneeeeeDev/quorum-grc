@@ -56,3 +56,11 @@ docs/       Product, architecture, and implementation docs
    ```
 
 Default API URL: `http://localhost:8000`
+
+## Documentation
+
+- [Product brief](docs/product-brief.md)
+- [Architecture](docs/architecture.md)
+- [API reference](docs/api.md)
+- [Verification](docs/verification.md)
+- [Resume and interview notes](docs/resume-and-interview.md)
