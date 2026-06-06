@@ -31,6 +31,10 @@ def require_roles(*roles: Role) -> Callable[[User], User]:
     return dependency
 
 
-WriteUser = Depends(require_roles(Role.ADMIN, Role.GOVERNANCE_OFFICER, Role.MANAGER))
-AdminUser = Depends(require_roles(Role.ADMIN))
+def require_write_user(current_user: User = Depends(require_roles(Role.ADMIN, Role.GOVERNANCE_OFFICER, Role.MANAGER))) -> User:
+    return current_user
+
+
+def require_admin_user(current_user: User = Depends(require_roles(Role.ADMIN))) -> User:
+    return current_user
 
