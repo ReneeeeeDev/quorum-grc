@@ -2,6 +2,8 @@
 
 A full-stack enterprise governance, risk, and compliance portal for managing policy lifecycles, committees, meetings, decisions, action items, audit logs, and executive reporting.
 
+A centralized enterprise governance platform that helps organizations manage policies, committees, decisions, compliance obligations, governance frameworks, approvals, documentation, and organizational accountability.
+
 ## Stack
 
 - Frontend: Next.js, TypeScript, Tailwind CSS
@@ -54,4 +56,3 @@ docs/       Product, architecture, and implementation docs
    ```
 
 Default API URL: `http://localhost:8000`
-
