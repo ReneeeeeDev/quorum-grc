@@ -31,3 +31,4 @@ postgres-data/
 redis-data/
 backend/storage/
 backend/local-dev.db*
+backend/gmp_*.db*
