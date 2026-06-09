@@ -64,3 +64,17 @@ Default API URL: `http://localhost:8000`
 - [API reference](docs/api.md)
 - [Verification](docs/verification.md)
 - [Resume and interview notes](docs/resume-and-interview.md)
+
+## Completed MVP Modules
+
+- Authentication and RBAC
+- Policy, meeting, decision, and action tracking
+- Reports and audit logs
+- Document upload
+- Notifications
+- Governance calendar
+- Multi-entity tenancy
+- Approval workflow steps
+- SSO provider configuration
+- Risk/compliance integration registry
+- Full-stack Docker Compose packaging

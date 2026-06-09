@@ -24,6 +24,13 @@ It supports policy lifecycle management, committee governance, decision tracking
 - Action item tracker.
 - Dashboard KPI reporting.
 - Audit logs for mutating backend actions.
+- Multi-entity tenant records.
+- Document upload and metadata management.
+- Notification center with read tracking.
+- Governance calendar events.
+- Configurable policy approval workflow steps.
+- SSO provider configuration and login handoff endpoint.
+- Risk/compliance integration connection registry.
 
 ## Seeded Demo Accounts
 
@@ -34,3 +41,13 @@ It supports policy lifecycle management, committee governance, decision tracking
 | Auditor | `auditor@gmp.local` | `Auditor@123` |
 | Board Member | `board@gmp.local` | `Board@123` |
 
+## Completed Pending Capabilities
+
+- Production packaging baseline through Dockerfiles and full-stack Docker Compose.
+- File upload stores document files under backend storage and tracks metadata in the database.
+- Notifications are persisted and generated for new action assignments.
+- Calendar events support meetings, reviews, audits, and renewals.
+- Multi-tenancy is represented through tenant records and tenant links on core governance objects.
+- Workflow approvals are configurable through ordered policy approval steps.
+- SSO providers are configurable with an MVP login handoff endpoint.
+- Risk and compliance integrations are represented through typed connection records.

@@ -1,4 +1,18 @@
 # Docker Notes
 
-The root `docker-compose.yml` starts PostgreSQL and Redis for local development. Application containers can be added later when the MVP is ready for deployment packaging.
+The root `docker-compose.yml` can run PostgreSQL, Redis, the FastAPI backend, and the Next.js frontend.
 
+Development services only:
+
+```bash
+docker compose up -d postgres redis
+```
+
+Full stack:
+
+```bash
+docker compose up --build
+```
+
+Frontend: `http://localhost:3000`
+Backend: `http://localhost:8000`

@@ -8,12 +8,18 @@ import {
   ClipboardCheck,
   FileText,
   Gavel,
+  GitPullRequest,
   LayoutDashboard,
   LogOut,
+  Network,
+  Paperclip,
+  Plug,
+  KeyRound,
   ScrollText,
   Settings,
   ShieldCheck,
   Users,
+  Bell,
 } from "lucide-react";
 
 import { useAuth } from "@/lib/auth";
@@ -25,8 +31,15 @@ const navItems = [
   { href: "/meetings", label: "Meetings", icon: CalendarDays },
   { href: "/decisions", label: "Decisions", icon: Gavel },
   { href: "/actions", label: "Actions", icon: ClipboardCheck },
+  { href: "/documents", label: "Documents", icon: Paperclip },
+  { href: "/notifications", label: "Notifications", icon: Bell },
+  { href: "/calendar", label: "Calendar", icon: CalendarDays },
+  { href: "/workflows", label: "Workflows", icon: GitPullRequest },
   { href: "/reports", label: "Reports", icon: BarChart3 },
   { href: "/audit-logs", label: "Audit Logs", icon: ScrollText },
+  { href: "/tenants", label: "Tenants", icon: Network },
+  { href: "/integrations", label: "Integrations", icon: Plug },
+  { href: "/sso", label: "SSO", icon: KeyRound },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -95,4 +108,3 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
-

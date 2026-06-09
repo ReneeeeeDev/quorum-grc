@@ -1,18 +1,55 @@
-from app.models.entities import ActionItem, AuditLog, Decision, Department, Meeting, Policy, PolicyReview, User
-from app.models.enums import ActionStatus, PolicyStatus, ReviewStatus, Role
+from app.models.entities import (
+    ActionItem,
+    AuditLog,
+    CalendarEvent,
+    Decision,
+    Department,
+    Document,
+    IntegrationConnection,
+    Meeting,
+    Notification,
+    Policy,
+    PolicyReview,
+    SSOProvider,
+    Tenant,
+    User,
+    WorkflowStep,
+)
+from app.models.enums import (
+    ActionStatus,
+    CalendarEventType,
+    IntegrationStatus,
+    NotificationStatus,
+    PolicyStatus,
+    ReviewStatus,
+    Role,
+    SSOProviderStatus,
+    WorkflowStepStatus,
+)
 
 __all__ = [
     "ActionItem",
     "ActionStatus",
     "AuditLog",
+    "CalendarEvent",
+    "CalendarEventType",
     "Decision",
     "Department",
+    "Document",
+    "IntegrationConnection",
+    "IntegrationStatus",
     "Meeting",
+    "Notification",
+    "NotificationStatus",
     "Policy",
     "PolicyReview",
     "PolicyStatus",
     "ReviewStatus",
     "Role",
+    "SSOProvider",
+    "SSOProviderStatus",
+    "Tenant",
     "User",
+    "WorkflowStep",
+    "WorkflowStepStatus",
 ]
-

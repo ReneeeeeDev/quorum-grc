@@ -1,11 +1,27 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { AlertTriangle, CheckCircle2, Clock, FileCheck2, ListChecks } from "lucide-react";
+import { AlertTriangle, Bell, CheckCircle2, Clock, FileCheck2, ListChecks, Paperclip, Plug } from "lucide-react";
 
 import { StatusChip } from "@/components/status-chip";
-import { apiRequest } from "@/lib/api";
-import type { ActionItem, AuditLog, Decision, Department, Meeting, Policy, ReportSummary, User } from "@/lib/types";
+import { apiRequest, apiUpload } from "@/lib/api";
+import type {
+  ActionItem,
+  AuditLog,
+  CalendarEvent,
+  Decision,
+  Department,
+  DocumentRecord,
+  IntegrationConnection,
+  Meeting,
+  NotificationRecord,
+  Policy,
+  ReportSummary,
+  SSOProvider,
+  Tenant,
+  User,
+  WorkflowStep,
+} from "@/lib/types";
 
 type Field = {
   name: string;
@@ -38,6 +54,29 @@ const roleOptions = [
   { label: "Manager", value: "Manager" },
   { label: "Auditor", value: "Auditor" },
   { label: "Board Member", value: "Board Member" },
+];
+
+const eventTypeOptions = [
+  { label: "Meeting", value: "meeting" },
+  { label: "Review", value: "review" },
+  { label: "Audit", value: "audit" },
+  { label: "Renewal", value: "renewal" },
+];
+
+const workflowStatusOptions = [
+  { label: "Pending", value: "pending" },
+  { label: "Approved", value: "approved" },
+  { label: "Rejected", value: "rejected" },
+];
+
+const integrationStatusOptions = [
+  { label: "Configured", value: "configured" },
+  { label: "Disabled", value: "disabled" },
+];
+
+const ssoStatusOptions = [
+  { label: "Enabled", value: "enabled" },
+  { label: "Disabled", value: "disabled" },
 ];
 
 function today() {
@@ -206,12 +245,35 @@ function usePortalData() {
   const [actions, setActions] = useState<ActionItem[]>([]);
   const [reports, setReports] = useState<ReportSummary | null>(null);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [documents, setDocuments] = useState<DocumentRecord[]>([]);
+  const [notifications, setNotifications] = useState<NotificationRecord[]>([]);
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
+  const [workflowSteps, setWorkflowSteps] = useState<WorkflowStep[]>([]);
+  const [integrations, setIntegrations] = useState<IntegrationConnection[]>([]);
+  const [ssoProviders, setSsoProviders] = useState<SSOProvider[]>([]);
 
   const reload = useCallback(async () => {
     setState("loading");
     setError(null);
     try {
-      const [nextUsers, nextDepartments, nextPolicies, nextMeetings, nextDecisions, nextActions, nextReports, nextAuditLogs] =
+      const [
+        nextUsers,
+        nextDepartments,
+        nextPolicies,
+        nextMeetings,
+        nextDecisions,
+        nextActions,
+        nextReports,
+        nextAuditLogs,
+        nextTenants,
+        nextDocuments,
+        nextNotifications,
+        nextCalendarEvents,
+        nextWorkflowSteps,
+        nextIntegrations,
+        nextSsoProviders,
+      ] =
         await Promise.all([
           apiRequest<User[]>("/api/users"),
           apiRequest<Department[]>("/api/departments"),
@@ -221,6 +283,13 @@ function usePortalData() {
           apiRequest<ActionItem[]>("/api/action-items"),
           apiRequest<ReportSummary>("/api/reports"),
           apiRequest<AuditLog[]>("/api/audit-logs"),
+          apiRequest<Tenant[]>("/api/tenants"),
+          apiRequest<DocumentRecord[]>("/api/documents"),
+          apiRequest<NotificationRecord[]>("/api/notifications"),
+          apiRequest<CalendarEvent[]>("/api/calendar-events"),
+          apiRequest<WorkflowStep[]>("/api/workflow-steps"),
+          apiRequest<IntegrationConnection[]>("/api/integrations"),
+          apiRequest<SSOProvider[]>("/api/sso-providers"),
         ]);
       setUsers(nextUsers);
       setDepartments(nextDepartments);
@@ -230,6 +299,13 @@ function usePortalData() {
       setActions(nextActions);
       setReports(nextReports);
       setAuditLogs(nextAuditLogs);
+      setTenants(nextTenants);
+      setDocuments(nextDocuments);
+      setNotifications(nextNotifications);
+      setCalendarEvents(nextCalendarEvents);
+      setWorkflowSteps(nextWorkflowSteps);
+      setIntegrations(nextIntegrations);
+      setSsoProviders(nextSsoProviders);
       setState("ready");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load portal data");
@@ -241,7 +317,26 @@ function usePortalData() {
     void reload();
   }, [reload]);
 
-  return { state, error, users, departments, policies, meetings, decisions, actions, reports, auditLogs, reload };
+  return {
+    state,
+    error,
+    users,
+    departments,
+    policies,
+    meetings,
+    decisions,
+    actions,
+    reports,
+    auditLogs,
+    tenants,
+    documents,
+    notifications,
+    calendarEvents,
+    workflowSteps,
+    integrations,
+    ssoProviders,
+    reload,
+  };
 }
 
 function LoadingOrError({ state, error }: { state: LoadState; error: string | null }) {
@@ -270,6 +365,14 @@ function decisionOptions(decisions: Decision[]) {
   return decisions.map((decision) => ({ label: `Decision #${decision.id}`, value: String(decision.id) }));
 }
 
+function tenantOptions(tenants: Tenant[]) {
+  return tenants.map((tenant) => ({ label: tenant.name, value: String(tenant.id) }));
+}
+
+function policyOptions(policies: Policy[]) {
+  return policies.map((policy) => ({ label: policy.title, value: String(policy.id) }));
+}
+
 export function DashboardScreen() {
   const data = usePortalData();
 
@@ -281,12 +384,15 @@ export function DashboardScreen() {
     { label: "Published policies", value: data.reports?.published_policies ?? 0, icon: FileCheck2 },
     { label: "Pending approvals", value: data.reports?.pending_approvals ?? 0, icon: Clock },
     { label: "Upcoming meetings", value: data.reports?.upcoming_meetings ?? 0, icon: CheckCircle2 },
+    { label: "Documents", value: data.reports?.documents ?? 0, icon: Paperclip },
+    { label: "Unread alerts", value: data.reports?.unread_notifications ?? 0, icon: Bell },
+    { label: "Integrations", value: data.reports?.active_integrations ?? 0, icon: Plug },
   ];
 
   return (
     <>
       <PageHeader title="Executive Dashboard" description="Governance KPIs, pending accountability items, and recent enterprise activity." />
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {cards.map((card) => {
           const Icon = card.icon;
           return (
@@ -582,6 +688,265 @@ export function ActionsScreen() {
   );
 }
 
+function DocumentUploadForm({ tenants, reload }: { tenants: Tenant[]; reload: () => Promise<void> }) {
+  const [title, setTitle] = useState("");
+  const [tenantId, setTenantId] = useState("");
+  const [linkedEntityType, setLinkedEntityType] = useState("");
+  const [linkedEntityId, setLinkedEntityId] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!file) {
+      setError("Select a file to upload");
+      return;
+    }
+    const formData = new FormData();
+    formData.set("title", title);
+    if (tenantId) formData.set("tenant_id", tenantId);
+    if (linkedEntityType) formData.set("linked_entity_type", linkedEntityType);
+    if (linkedEntityId) formData.set("linked_entity_id", linkedEntityId);
+    formData.set("file", file);
+    setSubmitting(true);
+    setError(null);
+    try {
+      await apiUpload<DocumentRecord>("/api/documents/upload", formData);
+      setTitle("");
+      setTenantId("");
+      setLinkedEntityType("");
+      setLinkedEntityId("");
+      setFile(null);
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Panel title="Upload document">
+      <form onSubmit={submit} className="grid gap-4">
+        <label className="block">
+          <span className="text-xs font-semibold uppercase text-muted">Title</span>
+          <input value={title} onChange={(event) => setTitle(event.target.value)} className="mt-1 w-full rounded border border-line px-3 py-2 text-sm outline-none focus:border-primary" required />
+        </label>
+        <label className="block">
+          <span className="text-xs font-semibold uppercase text-muted">Tenant</span>
+          <select value={tenantId} onChange={(event) => setTenantId(event.target.value)} className="mt-1 w-full rounded border border-line bg-white px-3 py-2 text-sm outline-none focus:border-primary">
+            <option value="">None</option>
+            {tenantOptions(tenants).map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+        </label>
+        <div className="grid gap-4 md:grid-cols-2">
+          <label className="block">
+            <span className="text-xs font-semibold uppercase text-muted">Linked entity</span>
+            <input value={linkedEntityType} onChange={(event) => setLinkedEntityType(event.target.value)} placeholder="policy" className="mt-1 w-full rounded border border-line px-3 py-2 text-sm outline-none focus:border-primary" />
+          </label>
+          <label className="block">
+            <span className="text-xs font-semibold uppercase text-muted">Entity ID</span>
+            <input value={linkedEntityId} onChange={(event) => setLinkedEntityId(event.target.value)} className="mt-1 w-full rounded border border-line px-3 py-2 text-sm outline-none focus:border-primary" />
+          </label>
+        </div>
+        <input type="file" onChange={(event) => setFile(event.target.files?.[0] ?? null)} className="text-sm text-muted" required />
+        {error ? <div className="rounded bg-red-50 px-3 py-2 text-sm text-danger">{error}</div> : null}
+        <button type="submit" disabled={submitting} className="rounded bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800 disabled:opacity-60">
+          {submitting ? "Uploading..." : "Upload"}
+        </button>
+      </form>
+    </Panel>
+  );
+}
+
+export function DocumentsScreen() {
+  const data = usePortalData();
+  if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
+
+  return (
+    <>
+      <PageHeader title="Document Management" description="Upload and track policies, minutes, governance reports, and supporting evidence." />
+      <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
+        <Panel title="Document repository">
+          <DataTable
+            rows={data.documents}
+            empty="No documents uploaded."
+            columns={[
+              { header: "Title", cell: (row) => <div><div className="font-semibold">{row.title}</div><div className="text-xs text-muted">{row.filename}</div></div> },
+              { header: "Size", cell: (row) => `${Math.ceil(row.file_size / 1024)} KB` },
+              { header: "Linked", cell: (row) => row.linked_entity_type ? `${row.linked_entity_type} #${row.linked_entity_id ?? "-"}` : "None" },
+              { header: "Uploaded", cell: (row) => new Date(row.created_at).toLocaleString() },
+            ]}
+          />
+        </Panel>
+        <DocumentUploadForm tenants={data.tenants} reload={data.reload} />
+      </div>
+    </>
+  );
+}
+
+export function NotificationsScreen() {
+  const data = usePortalData();
+  if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
+
+  return (
+    <>
+      <PageHeader title="Notifications" description="Governance reminders, approval requests, due-date alerts, and read tracking." />
+      <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
+        <Panel title="Notification center">
+          <DataTable
+            rows={data.notifications}
+            empty="No notifications found."
+            columns={[
+              { header: "Title", cell: (row) => <div><div className="font-semibold">{row.title}</div><div className="text-xs text-muted">{row.message}</div></div> },
+              { header: "Due", cell: (row) => row.due_date ?? "None" },
+              { header: "Status", cell: (row) => <StatusChip status={row.status} /> },
+              {
+                header: "Update",
+                cell: (row) => (
+                  <button
+                    className="text-xs font-semibold text-primary"
+                    onClick={async () => {
+                      await apiRequest<NotificationRecord>(`/api/notifications/${row.id}`, { method: "PUT", body: JSON.stringify({ status: "read" }) });
+                      await data.reload();
+                    }}
+                  >
+                    Mark read
+                  </button>
+                ),
+              },
+            ]}
+          />
+        </Panel>
+        <CompactForm
+          title="Create alert"
+          initialValues={{ title: "", message: "", user_id: "", due_date: nextMonth() }}
+          fields={[
+            { name: "title", label: "Title", required: true },
+            { name: "user_id", label: "User", type: "select", options: userOptions(data.users) },
+            { name: "due_date", label: "Due date", type: "date" },
+            { name: "message", label: "Message", type: "textarea", required: true },
+          ]}
+          onSubmit={async (values) => {
+            await apiRequest<NotificationRecord>("/api/notifications", {
+              method: "POST",
+              body: JSON.stringify({ title: values.title, message: values.message, user_id: values.user_id ? Number(values.user_id) : null, due_date: values.due_date || null }),
+            });
+            await data.reload();
+          }}
+        />
+      </div>
+    </>
+  );
+}
+
+export function CalendarScreen() {
+  const data = usePortalData();
+  if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
+
+  return (
+    <>
+      <PageHeader title="Governance Calendar" description="Track reviews, meetings, audits, renewals, and accountable owners." />
+      <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
+        <Panel title="Calendar events">
+          <DataTable
+            rows={data.calendarEvents}
+            empty="No calendar events found."
+            columns={[
+              { header: "Event", cell: (row) => <div><div className="font-semibold">{row.title}</div><div className="text-xs text-muted">{row.description}</div></div> },
+              { header: "Type", cell: (row) => row.event_type },
+              { header: "Date", cell: (row) => row.event_date },
+              { header: "Owner", cell: (row) => data.users.find((user) => user.id === row.owner_id)?.name ?? "Unassigned" },
+            ]}
+          />
+        </Panel>
+        <CompactForm
+          title="Create event"
+          initialValues={{ title: "", event_type: "meeting", event_date: nextMonth(), owner_id: "", description: "" }}
+          fields={[
+            { name: "title", label: "Title", required: true },
+            { name: "event_type", label: "Type", type: "select", options: eventTypeOptions, required: true },
+            { name: "event_date", label: "Date", type: "date", required: true },
+            { name: "owner_id", label: "Owner", type: "select", options: userOptions(data.users) },
+            { name: "description", label: "Description", type: "textarea" },
+          ]}
+          onSubmit={async (values) => {
+            await apiRequest<CalendarEvent>("/api/calendar-events", {
+              method: "POST",
+              body: JSON.stringify({ ...values, owner_id: values.owner_id ? Number(values.owner_id) : null }),
+            });
+            await data.reload();
+          }}
+        />
+      </div>
+    </>
+  );
+}
+
+export function WorkflowsScreen() {
+  const data = usePortalData();
+  if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
+
+  return (
+    <>
+      <PageHeader title="Approval Workflows" description="Configure policy approval steps, approvers, sequence, decisions, and comments." />
+      <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
+        <Panel title="Workflow steps">
+          <DataTable
+            rows={data.workflowSteps}
+            empty="No workflow steps configured."
+            columns={[
+              { header: "Policy", cell: (row) => data.policies.find((policy) => policy.id === row.policy_id)?.title ?? `Policy #${row.policy_id}` },
+              { header: "Step", cell: (row) => `${row.sequence}. ${row.step_name}` },
+              { header: "Approver", cell: (row) => data.users.find((user) => user.id === row.approver_id)?.name ?? "Unknown" },
+              { header: "Status", cell: (row) => <StatusChip status={row.status} /> },
+              {
+                header: "Update",
+                cell: (row) => (
+                  <select
+                    value={row.status}
+                    className="rounded border border-line bg-white px-2 py-1 text-xs"
+                    onChange={async (event) => {
+                      await apiRequest<WorkflowStep>(`/api/workflow-steps/${row.id}`, { method: "PUT", body: JSON.stringify({ status: event.target.value }) });
+                      await data.reload();
+                    }}
+                  >
+                    {workflowStatusOptions.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                ),
+              },
+            ]}
+          />
+        </Panel>
+        <CompactForm
+          title="Add approval step"
+          initialValues={{ policy_id: String(data.policies[0]?.id ?? ""), step_name: "Review", approver_id: String(data.users[0]?.id ?? ""), sequence: "1", status: "pending", comments: "" }}
+          fields={[
+            { name: "policy_id", label: "Policy", type: "select", options: policyOptions(data.policies), required: true },
+            { name: "step_name", label: "Step name", required: true },
+            { name: "approver_id", label: "Approver", type: "select", options: userOptions(data.users), required: true },
+            { name: "sequence", label: "Sequence", required: true },
+            { name: "status", label: "Status", type: "select", options: workflowStatusOptions, required: true },
+            { name: "comments", label: "Comments", type: "textarea" },
+          ]}
+          onSubmit={async (values) => {
+            await apiRequest<WorkflowStep>("/api/workflow-steps", {
+              method: "POST",
+              body: JSON.stringify({ ...values, policy_id: Number(values.policy_id), approver_id: Number(values.approver_id), sequence: Number(values.sequence) }),
+            });
+            await data.reload();
+          }}
+        />
+      </div>
+    </>
+  );
+}
+
 export function ReportsScreen() {
   const data = usePortalData();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
@@ -592,6 +957,9 @@ export function ReportsScreen() {
     { metric: "Published policies", value: data.reports?.published_policies ?? 0, interpretation: "Approved and live policy documents" },
     { metric: "Pending approvals", value: data.reports?.pending_approvals ?? 0, interpretation: "Policies in review or approval workflow" },
     { metric: "Upcoming meetings", value: data.reports?.upcoming_meetings ?? 0, interpretation: "Scheduled committee or board sessions" },
+    { metric: "Unread notifications", value: data.reports?.unread_notifications ?? 0, interpretation: "Alerts still requiring user attention" },
+    { metric: "Documents", value: data.reports?.documents ?? 0, interpretation: "Uploaded governance evidence and records" },
+    { metric: "Active integrations", value: data.reports?.active_integrations ?? 0, interpretation: "Configured system connections" },
   ];
 
   return (
@@ -608,6 +976,129 @@ export function ReportsScreen() {
           ]}
         />
       </Panel>
+    </>
+  );
+}
+
+export function TenantsScreen() {
+  const data = usePortalData();
+  if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
+
+  return (
+    <>
+      <PageHeader title="Multi-Entity Governance" description="Manage companies, subsidiaries, and tenant-level governance boundaries." />
+      <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
+        <Panel title="Tenants">
+          <DataTable
+            rows={data.tenants}
+            empty="No tenants found."
+            columns={[
+              { header: "Name", cell: (row) => row.name },
+              { header: "Domain", cell: (row) => row.domain ?? "Not set" },
+              { header: "Status", cell: (row) => row.is_active ? "Active" : "Inactive" },
+              { header: "Created", cell: (row) => new Date(row.created_at).toLocaleDateString() },
+            ]}
+          />
+        </Panel>
+        <CompactForm
+          title="Create tenant"
+          initialValues={{ name: "", domain: "" }}
+          fields={[
+            { name: "name", label: "Name", required: true },
+            { name: "domain", label: "Domain" },
+          ]}
+          onSubmit={async (values) => {
+            await apiRequest<Tenant>("/api/tenants", { method: "POST", body: JSON.stringify({ name: values.name, domain: values.domain || null, is_active: true }) });
+            await data.reload();
+          }}
+        />
+      </div>
+    </>
+  );
+}
+
+export function IntegrationsScreen() {
+  const data = usePortalData();
+  if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
+
+  return (
+    <>
+      <PageHeader title="Risk and Compliance Integrations" description="Configure external risk register, compliance portal, vendor risk, and reporting connections." />
+      <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
+        <Panel title="Integration connections">
+          <DataTable
+            rows={data.integrations}
+            empty="No integrations configured."
+            columns={[
+              { header: "Name", cell: (row) => row.name },
+              { header: "Type", cell: (row) => row.integration_type },
+              { header: "Endpoint", cell: (row) => row.endpoint_url ?? "Manual" },
+              { header: "Status", cell: (row) => <StatusChip status={row.status} /> },
+            ]}
+          />
+        </Panel>
+        <CompactForm
+          title="Create integration"
+          initialValues={{ tenant_id: String(data.tenants[0]?.id ?? ""), name: "", integration_type: "compliance", endpoint_url: "", status: "configured" }}
+          fields={[
+            { name: "tenant_id", label: "Tenant", type: "select", options: tenantOptions(data.tenants) },
+            { name: "name", label: "Name", required: true },
+            { name: "integration_type", label: "Type", required: true },
+            { name: "endpoint_url", label: "Endpoint URL" },
+            { name: "status", label: "Status", type: "select", options: integrationStatusOptions, required: true },
+          ]}
+          onSubmit={async (values) => {
+            await apiRequest<IntegrationConnection>("/api/integrations", {
+              method: "POST",
+              body: JSON.stringify({ ...values, tenant_id: values.tenant_id ? Number(values.tenant_id) : null, endpoint_url: values.endpoint_url || null }),
+            });
+            await data.reload();
+          }}
+        />
+      </div>
+    </>
+  );
+}
+
+export function SSOScreen() {
+  const data = usePortalData();
+  if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
+
+  return (
+    <>
+      <PageHeader title="SSO Providers" description="Configure SAML or OIDC identity providers for enterprise authentication handoff." />
+      <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
+        <Panel title="Identity providers">
+          <DataTable
+            rows={data.ssoProviders}
+            empty="No SSO providers configured."
+            columns={[
+              { header: "Name", cell: (row) => row.name },
+              { header: "Type", cell: (row) => row.provider_type },
+              { header: "Metadata", cell: (row) => row.metadata_url ?? "Not set" },
+              { header: "Status", cell: (row) => <StatusChip status={row.status} /> },
+            ]}
+          />
+        </Panel>
+        <CompactForm
+          title="Create provider"
+          initialValues={{ tenant_id: String(data.tenants[0]?.id ?? ""), name: "", provider_type: "saml", metadata_url: "", status: "disabled" }}
+          fields={[
+            { name: "tenant_id", label: "Tenant", type: "select", options: tenantOptions(data.tenants) },
+            { name: "name", label: "Name", required: true },
+            { name: "provider_type", label: "Provider type", required: true },
+            { name: "metadata_url", label: "Metadata URL" },
+            { name: "status", label: "Status", type: "select", options: ssoStatusOptions, required: true },
+          ]}
+          onSubmit={async (values) => {
+            await apiRequest<SSOProvider>("/api/sso-providers", {
+              method: "POST",
+              body: JSON.stringify({ ...values, tenant_id: values.tenant_id ? Number(values.tenant_id) : null, metadata_url: values.metadata_url || null }),
+            });
+            await data.reload();
+          }}
+        />
+      </div>
     </>
   );
 }

@@ -29,3 +29,30 @@ class ActionStatus(StrEnum):
     COMPLETE = "complete"
     OVERDUE = "overdue"
 
+
+class NotificationStatus(StrEnum):
+    UNREAD = "unread"
+    READ = "read"
+
+
+class CalendarEventType(StrEnum):
+    MEETING = "meeting"
+    REVIEW = "review"
+    AUDIT = "audit"
+    RENEWAL = "renewal"
+
+
+class WorkflowStepStatus(StrEnum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+
+class IntegrationStatus(StrEnum):
+    CONFIGURED = "configured"
+    DISABLED = "disabled"
+
+
+class SSOProviderStatus(StrEnum):
+    ENABLED = "enabled"
+    DISABLED = "disabled"

@@ -28,3 +28,4 @@ Thumbs.db
 # Docker/data
 postgres-data/
 redis-data/
+backend/storage/

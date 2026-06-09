@@ -16,6 +16,8 @@ Smoke flow:
 3. Log in with `admin@gmp.local` / `Admin@123`.
 4. Create a policy, meeting, decision, and action item.
 5. Confirm `/api/reports` updates and `/api/audit-logs` records mutating actions.
+6. Upload a document through `/api/documents/upload`.
+7. Create a calendar event, workflow step, integration, tenant, and SSO provider from the frontend.
 
 ## Frontend
 
@@ -32,3 +34,11 @@ Smoke flow:
 2. Sign in using the admin demo account.
 3. Navigate through Dashboard, Policies, Committees, Meetings, Decisions, Actions, Reports, Audit Logs, and Settings.
 4. Create records through each form and confirm tables update.
+
+## Full Stack Docker
+
+```bash
+docker compose up --build
+```
+
+Then open `http://localhost:3000/login`.

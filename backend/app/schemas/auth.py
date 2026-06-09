@@ -16,6 +16,7 @@ class TokenResponse(BaseModel):
 
 class UserRead(OrmModel):
     id: int
+    tenant_id: int | None
     name: str
     email: str
     role: Role
