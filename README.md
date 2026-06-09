@@ -69,6 +69,7 @@ Default local URLs:
 - Set `NEXT_BACKEND_URL` for the frontend server to reach the backend.
 - The backend container runs Alembic migrations before starting.
 - See [Deployment](docs/deployment.md) for platform options.
+- For the chosen managed stack, see [Vercel + Render + Supabase deployment](docs/deploy-vercel-render-supabase.md).
 
 ## Verification
 

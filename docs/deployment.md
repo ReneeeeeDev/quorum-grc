@@ -46,6 +46,8 @@ Production checklist:
 
 ## Managed Platform Options
 
+For the selected setup, use the dedicated [Vercel + Render + Supabase guide](deploy-vercel-render-supabase.md).
+
 ### Render
 
 Good fit for a simple hosted demo:
