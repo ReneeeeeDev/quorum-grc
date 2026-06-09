@@ -30,3 +30,4 @@ Thumbs.db
 postgres-data/
 redis-data/
 backend/storage/
+backend/local-dev.db*
