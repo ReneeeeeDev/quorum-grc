@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     smtp_password: str | None = None
     notification_from_email: str = "governance@example.com"
     sso_enabled: bool = False
+    demo_seed_enabled: bool = True
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

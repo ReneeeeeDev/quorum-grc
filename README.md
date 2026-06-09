@@ -55,7 +55,30 @@ docs/       Product, architecture, and implementation docs
    npm run dev
    ```
 
-Default API URL: `http://localhost:8000`
+The frontend calls same-origin `/api/*` by default and proxies those requests to `NEXT_BACKEND_URL`.
+
+Default local URLs:
+
+- Frontend: `http://127.0.0.1:3000`
+- Backend: `http://127.0.0.1:8000`
+
+## Production Notes
+
+- Use `backend/.env.production.example` as the backend secret template.
+- Set `DEMO_SEED_ENABLED=false` for real production data.
+- Set `NEXT_BACKEND_URL` for the frontend server to reach the backend.
+- The backend container runs Alembic migrations before starting.
+- See [Deployment](docs/deployment.md) for platform options.
+
+## Verification
+
+```bash
+cd backend
+python scripts/smoke_check.py
+
+cd ../frontend
+npm run typecheck
+```
 
 ## Documentation
 
