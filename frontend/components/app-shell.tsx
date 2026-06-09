@@ -57,8 +57,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-canvas">
-      <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-line bg-ink text-white lg:block">
-        <div className="flex h-16 items-center gap-3 border-b border-white/10 px-5">
+      <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-line bg-ink text-white lg:flex">
+        <div className="flex h-16 shrink-0 items-center gap-3 border-b border-white/10 px-5">
           <div className="flex h-9 w-9 items-center justify-center rounded bg-primary">
             <ShieldCheck className="h-5 w-5" />
           </div>
@@ -67,7 +67,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div className="text-xs text-white/60">Enterprise GRC</div>
           </div>
         </div>
-        <nav className="space-y-1 px-3 py-4">
+        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-4">
           {navItems.map((item) => {
             const Icon = item.icon;
             const active = pathname === item.href;
