@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
-import { apiRequest, setToken } from "@/lib/api";
+import { apiRequest, getToken, setToken } from "@/lib/api";
 import type { User } from "@/lib/types";
 
 type AuthContextValue = {
@@ -22,6 +22,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const refreshUser = useCallback(async () => {
+    if (!getToken()) {
+      setUser(null);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const nextUser = await apiRequest<User>("/api/auth/me");
@@ -67,4 +72,3 @@ export function useAuth() {
   if (!context) throw new Error("useAuth must be used inside AuthProvider");
   return context;
 }
-

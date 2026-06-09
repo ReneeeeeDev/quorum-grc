@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -26,6 +26,12 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
   });
 
   if (!response.ok) {
+    if (response.status === 401 && typeof window !== "undefined") {
+      setToken(null);
+      if (window.location.pathname !== "/login") {
+        window.location.href = "/login";
+      }
+    }
     const error = await response.json().catch(() => ({ detail: response.statusText }));
     throw new Error(error.detail ?? "Request failed");
   }
@@ -49,6 +55,12 @@ export async function apiUpload<T>(path: string, formData: FormData): Promise<T>
   });
 
   if (!response.ok) {
+    if (response.status === 401 && typeof window !== "undefined") {
+      setToken(null);
+      if (window.location.pathname !== "/login") {
+        window.location.href = "/login";
+      }
+    }
     const error = await response.json().catch(() => ({ detail: response.statusText }));
     throw new Error(error.detail ?? "Upload failed");
   }
