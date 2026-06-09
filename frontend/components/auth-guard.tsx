@@ -3,18 +3,20 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
+import { getToken } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, loading } = useAuth();
+  const hasStoredToken = Boolean(getToken());
 
   useEffect(() => {
-    if (!loading && !user && pathname !== "/login") {
+    if (!loading && !user && !hasStoredToken && pathname !== "/login") {
       router.push("/login");
     }
-  }, [loading, pathname, router, user]);
+  }, [hasStoredToken, loading, pathname, router, user]);
 
   if (pathname === "/login") return <>{children}</>;
 
@@ -22,8 +24,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     return <div className="flex min-h-screen items-center justify-center text-sm text-muted">Loading portal...</div>;
   }
 
-  if (!user) return null;
+  if (!user && !hasStoredToken) return null;
 
   return <>{children}</>;
 }
-

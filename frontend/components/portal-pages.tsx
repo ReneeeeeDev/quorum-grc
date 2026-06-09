@@ -35,6 +35,17 @@ type Field = {
 
 type LoadState = "idle" | "loading" | "ready" | "error";
 
+const emptyReportSummary: ReportSummary = {
+  open_actions: 0,
+  overdue_items: 0,
+  published_policies: 0,
+  pending_approvals: 0,
+  upcoming_meetings: 0,
+  unread_notifications: 0,
+  documents: 0,
+  active_integrations: 0,
+};
+
 const policyStatusOptions = [
   { label: "Draft", value: "draft" },
   { label: "Review", value: "review" },
@@ -280,67 +291,60 @@ function usePortalData() {
   const reload = useCallback(async () => {
     setState("loading");
     setError(null);
-    try {
-      const [
-        nextUsers,
-        nextDepartments,
-        nextPolicies,
-        nextMeetings,
-        nextDecisions,
-        nextActions,
-        nextReports,
-        nextAuditLogs,
-        nextTenants,
-        nextDocuments,
-        nextNotifications,
-        nextCalendarEvents,
-        nextWorkflowSteps,
-        nextIntegrations,
-        nextSsoProviders,
-        nextComplianceObligations,
-        nextRisks,
-      ] =
-        await Promise.all([
-          apiRequest<User[]>("/api/users"),
-          apiRequest<Department[]>("/api/departments"),
-          apiRequest<Policy[]>("/api/policies"),
-          apiRequest<Meeting[]>("/api/meetings"),
-          apiRequest<Decision[]>("/api/decisions"),
-          apiRequest<ActionItem[]>("/api/action-items"),
-          apiRequest<ReportSummary>("/api/reports"),
-          apiRequest<AuditLog[]>("/api/audit-logs"),
-          apiRequest<Tenant[]>("/api/tenants"),
-          apiRequest<DocumentRecord[]>("/api/documents"),
-          apiRequest<NotificationRecord[]>("/api/notifications"),
-          apiRequest<CalendarEvent[]>("/api/calendar-events"),
-          apiRequest<WorkflowStep[]>("/api/workflow-steps"),
-          apiRequest<IntegrationConnection[]>("/api/integrations"),
-          apiRequest<SSOProvider[]>("/api/sso-providers"),
-          apiRequest<ComplianceObligation[]>("/api/compliance-obligations"),
-          apiRequest<Risk[]>("/api/risks"),
-        ]);
-      setUsers(nextUsers);
-      setDepartments(nextDepartments);
-      setPolicies(nextPolicies);
-      setMeetings(nextMeetings);
-      setDecisions(nextDecisions);
-      setActions(nextActions);
-      setReports(nextReports);
-      setAuditLogs(nextAuditLogs);
-      setTenants(nextTenants);
-      setDocuments(nextDocuments);
-      setNotifications(nextNotifications);
-      setCalendarEvents(nextCalendarEvents);
-      setWorkflowSteps(nextWorkflowSteps);
-      setIntegrations(nextIntegrations);
-      setSsoProviders(nextSsoProviders);
-      setComplianceObligations(nextComplianceObligations);
-      setRisks(nextRisks);
-      setState("ready");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to load portal data");
+
+    const requests = [
+      apiRequest<User[]>("/api/users"),
+      apiRequest<Department[]>("/api/departments"),
+      apiRequest<Policy[]>("/api/policies"),
+      apiRequest<Meeting[]>("/api/meetings"),
+      apiRequest<Decision[]>("/api/decisions"),
+      apiRequest<ActionItem[]>("/api/action-items"),
+      apiRequest<ReportSummary>("/api/reports"),
+      apiRequest<AuditLog[]>("/api/audit-logs"),
+      apiRequest<Tenant[]>("/api/tenants"),
+      apiRequest<DocumentRecord[]>("/api/documents"),
+      apiRequest<NotificationRecord[]>("/api/notifications"),
+      apiRequest<CalendarEvent[]>("/api/calendar-events"),
+      apiRequest<WorkflowStep[]>("/api/workflow-steps"),
+      apiRequest<IntegrationConnection[]>("/api/integrations"),
+      apiRequest<SSOProvider[]>("/api/sso-providers"),
+      apiRequest<ComplianceObligation[]>("/api/compliance-obligations"),
+      apiRequest<Risk[]>("/api/risks"),
+    ] as const;
+
+    const results = await Promise.allSettled(requests);
+    const failed = results.filter((result) => result.status === "rejected");
+
+    if (failed.length === results.length) {
+      const firstError = failed[0]?.reason;
+      setError(firstError instanceof Error ? firstError.message : "Unable to load portal data");
       setState("error");
+      return;
     }
+
+    const valueAt = <T,>(index: number, fallback: T): T => {
+      const result = results[index];
+      return result.status === "fulfilled" ? (result.value as T) : fallback;
+    };
+
+    setUsers(valueAt<User[]>(0, []));
+    setDepartments(valueAt<Department[]>(1, []));
+    setPolicies(valueAt<Policy[]>(2, []));
+    setMeetings(valueAt<Meeting[]>(3, []));
+    setDecisions(valueAt<Decision[]>(4, []));
+    setActions(valueAt<ActionItem[]>(5, []));
+    setReports(valueAt<ReportSummary>(6, emptyReportSummary));
+    setAuditLogs(valueAt<AuditLog[]>(7, []));
+    setTenants(valueAt<Tenant[]>(8, []));
+    setDocuments(valueAt<DocumentRecord[]>(9, []));
+    setNotifications(valueAt<NotificationRecord[]>(10, []));
+    setCalendarEvents(valueAt<CalendarEvent[]>(11, []));
+    setWorkflowSteps(valueAt<WorkflowStep[]>(12, []));
+    setIntegrations(valueAt<IntegrationConnection[]>(13, []));
+    setSsoProviders(valueAt<SSOProvider[]>(14, []));
+    setComplianceObligations(valueAt<ComplianceObligation[]>(15, []));
+    setRisks(valueAt<Risk[]>(16, []));
+    setState("ready");
   }, []);
 
   useEffect(() => {

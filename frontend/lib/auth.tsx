@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
-import { apiRequest, getToken, setToken } from "@/lib/api";
+import { ApiError, apiRequest, getToken, setToken } from "@/lib/api";
 import type { User } from "@/lib/types";
 
 type AuthContextValue = {
@@ -31,9 +31,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const nextUser = await apiRequest<User>("/api/auth/me");
       setUser(nextUser);
-    } catch {
-      setToken(null);
-      setUser(null);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        setToken(null);
+        setUser(null);
+      }
     } finally {
       setLoading(false);
     }
@@ -42,6 +44,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     void refreshUser();
   }, [refreshUser]);
+
+  useEffect(() => {
+    function handleUnauthorized() {
+      setToken(null);
+      setUser(null);
+      router.replace("/login");
+    }
+
+    window.addEventListener("gmp:unauthorized", handleUnauthorized);
+    return () => window.removeEventListener("gmp:unauthorized", handleUnauthorized);
+  }, [router]);
 
   const login = useCallback(
     async (email: string, password: string) => {
