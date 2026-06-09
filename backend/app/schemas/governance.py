@@ -5,11 +5,16 @@ from pydantic import BaseModel
 from app.models import (
     ActionStatus,
     CalendarEventType,
+    ComplianceStatus,
+    DeliveryStatus,
     IntegrationStatus,
     NotificationStatus,
     PolicyStatus,
+    RiskSeverity,
+    RiskStatus,
     Role,
     SSOProviderStatus,
+    SyncStatus,
     WorkflowStepStatus,
 )
 from app.schemas.common import OrmModel
@@ -297,3 +302,87 @@ class SSOLoginResponse(BaseModel):
     status: str
     redirect_url: str | None = None
     message: str
+
+
+class NotificationDeliveryRead(OrmModel):
+    id: int
+    notification_id: int
+    channel: str
+    recipient: str | None
+    status: DeliveryStatus
+    error: str | None
+    created_at: datetime
+
+
+class IntegrationSyncRunRead(OrmModel):
+    id: int
+    integration_id: int
+    status: SyncStatus
+    records_processed: int
+    message: str | None
+    created_at: datetime
+
+
+class ComplianceObligationCreate(BaseModel):
+    tenant_id: int | None = None
+    title: str
+    source: str = "internal"
+    owner_id: int | None = None
+    due_date: date | None = None
+    status: ComplianceStatus = ComplianceStatus.NOT_STARTED
+    evidence_document_id: int | None = None
+    description: str | None = None
+
+
+class ComplianceObligationUpdate(BaseModel):
+    title: str | None = None
+    source: str | None = None
+    owner_id: int | None = None
+    due_date: date | None = None
+    status: ComplianceStatus | None = None
+    evidence_document_id: int | None = None
+    description: str | None = None
+
+
+class ComplianceObligationRead(OrmModel):
+    id: int
+    tenant_id: int | None
+    title: str
+    source: str
+    owner_id: int | None
+    due_date: date | None
+    status: ComplianceStatus
+    evidence_document_id: int | None
+    description: str | None
+    created_at: datetime
+
+
+class RiskCreate(BaseModel):
+    tenant_id: int | None = None
+    title: str
+    category: str = "governance"
+    severity: RiskSeverity = RiskSeverity.MEDIUM
+    status: RiskStatus = RiskStatus.OPEN
+    owner_id: int | None = None
+    mitigation_plan: str | None = None
+
+
+class RiskUpdate(BaseModel):
+    title: str | None = None
+    category: str | None = None
+    severity: RiskSeverity | None = None
+    status: RiskStatus | None = None
+    owner_id: int | None = None
+    mitigation_plan: str | None = None
+
+
+class RiskRead(OrmModel):
+    id: int
+    tenant_id: int | None
+    title: str
+    category: str
+    severity: RiskSeverity
+    status: RiskStatus
+    owner_id: int | None
+    mitigation_plan: str | None
+    created_at: datetime

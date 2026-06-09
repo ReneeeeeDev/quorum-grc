@@ -1,10 +1,13 @@
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 os.environ.setdefault("DATABASE_URL", "sqlite+pysqlite:///:memory:")
 os.environ.setdefault("JWT_SECRET_KEY", "smoke-test-secret")
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+backend_root = Path(__file__).resolve().parents[1]
+os.environ.setdefault("FILE_STORAGE_PATH", str(Path(tempfile.gettempdir()) / "gmp-smoke-documents"))
+sys.path.insert(0, str(backend_root))
 
 from fastapi.testclient import TestClient
 
@@ -56,6 +59,16 @@ def main() -> None:
         )
         assert document.status_code == 201, document.text
 
+        uploaded_document = client.post(
+            "/api/documents/upload",
+            headers=headers,
+            data={"tenant_id": str(tenant_id), "title": "Uploaded Smoke Document"},
+            files={"file": ("smoke.txt", b"hello governance", "text/plain")},
+        )
+        assert uploaded_document.status_code == 201, uploaded_document.text
+        download = client.get(f"/api/documents/{uploaded_document.json()['id']}/download", headers=headers)
+        assert download.status_code == 200, download.text
+
         notification = client.post(
             "/api/notifications",
             headers=headers,
@@ -90,6 +103,40 @@ def main() -> None:
             json={"tenant_id": tenant_id, "name": "Smoke IdP", "provider_type": "saml", "metadata_url": "https://idp.example/metadata"},
         )
         assert sso.status_code == 201, sso.text
+
+        reset = client.post("/api/auth/password-reset/request", json={"email": "auditor@gmp.local"})
+        assert reset.status_code == 200, reset.text
+        reset_token = reset.json()["reset_token"]
+        confirm = client.post("/api/auth/password-reset/confirm", json={"token": reset_token, "new_password": "Auditor@123"})
+        assert confirm.status_code == 200, confirm.text
+
+        compliance = client.post(
+            "/api/compliance-obligations",
+            headers=headers,
+            json={"tenant_id": tenant_id, "title": "Smoke Compliance Obligation", "source": "internal", "owner_id": owner_id},
+        )
+        assert compliance.status_code == 201, compliance.text
+
+        risk = client.post(
+            "/api/risks",
+            headers=headers,
+            json={"tenant_id": tenant_id, "title": "Smoke Risk", "category": "governance", "severity": "high", "owner_id": owner_id},
+        )
+        assert risk.status_code == 201, risk.text
+
+        dispatch = client.post(f"/api/notifications/{notification.json()['id']}/dispatch", headers=headers)
+        assert dispatch.status_code == 200, dispatch.text
+
+        sync = client.post(f"/api/integrations/{integration.json()['id']}/sync", headers=headers)
+        assert sync.status_code == 200, sync.text
+
+        ics = client.get("/api/calendar-events/export.ics", headers=headers)
+        assert ics.status_code == 200, ics.text
+        assert "BEGIN:VCALENDAR" in ics.text
+
+        audit_export = client.get("/api/audit-logs/export", headers=headers)
+        assert audit_export.status_code == 200, audit_export.text
+        assert "id,actor_id,action" in audit_export.text
 
     print("Backend smoke check passed")
 

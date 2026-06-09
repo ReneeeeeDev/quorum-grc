@@ -4,11 +4,12 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import { AlertTriangle, Bell, CheckCircle2, Clock, FileCheck2, ListChecks, Paperclip, Plug } from "lucide-react";
 
 import { StatusChip } from "@/components/status-chip";
-import { apiRequest, apiUpload } from "@/lib/api";
+import { apiRequest, apiUpload, getToken } from "@/lib/api";
 import type {
   ActionItem,
   AuditLog,
   CalendarEvent,
+  ComplianceObligation,
   Decision,
   Department,
   DocumentRecord,
@@ -17,6 +18,7 @@ import type {
   NotificationRecord,
   Policy,
   ReportSummary,
+  Risk,
   SSOProvider,
   Tenant,
   User,
@@ -77,6 +79,26 @@ const integrationStatusOptions = [
 const ssoStatusOptions = [
   { label: "Enabled", value: "enabled" },
   { label: "Disabled", value: "disabled" },
+];
+
+const complianceStatusOptions = [
+  { label: "Not started", value: "not_started" },
+  { label: "In progress", value: "in_progress" },
+  { label: "Compliant", value: "compliant" },
+  { label: "Non compliant", value: "non_compliant" },
+];
+
+const riskStatusOptions = [
+  { label: "Open", value: "open" },
+  { label: "Mitigating", value: "mitigating" },
+  { label: "Closed", value: "closed" },
+];
+
+const riskSeverityOptions = [
+  { label: "Low", value: "low" },
+  { label: "Medium", value: "medium" },
+  { label: "High", value: "high" },
+  { label: "Critical", value: "critical" },
 ];
 
 function today() {
@@ -252,6 +274,8 @@ function usePortalData() {
   const [workflowSteps, setWorkflowSteps] = useState<WorkflowStep[]>([]);
   const [integrations, setIntegrations] = useState<IntegrationConnection[]>([]);
   const [ssoProviders, setSsoProviders] = useState<SSOProvider[]>([]);
+  const [complianceObligations, setComplianceObligations] = useState<ComplianceObligation[]>([]);
+  const [risks, setRisks] = useState<Risk[]>([]);
 
   const reload = useCallback(async () => {
     setState("loading");
@@ -273,6 +297,8 @@ function usePortalData() {
         nextWorkflowSteps,
         nextIntegrations,
         nextSsoProviders,
+        nextComplianceObligations,
+        nextRisks,
       ] =
         await Promise.all([
           apiRequest<User[]>("/api/users"),
@@ -290,6 +316,8 @@ function usePortalData() {
           apiRequest<WorkflowStep[]>("/api/workflow-steps"),
           apiRequest<IntegrationConnection[]>("/api/integrations"),
           apiRequest<SSOProvider[]>("/api/sso-providers"),
+          apiRequest<ComplianceObligation[]>("/api/compliance-obligations"),
+          apiRequest<Risk[]>("/api/risks"),
         ]);
       setUsers(nextUsers);
       setDepartments(nextDepartments);
@@ -306,6 +334,8 @@ function usePortalData() {
       setWorkflowSteps(nextWorkflowSteps);
       setIntegrations(nextIntegrations);
       setSsoProviders(nextSsoProviders);
+      setComplianceObligations(nextComplianceObligations);
+      setRisks(nextRisks);
       setState("ready");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load portal data");
@@ -335,6 +365,8 @@ function usePortalData() {
     workflowSteps,
     integrations,
     ssoProviders,
+    complianceObligations,
+    risks,
     reload,
   };
 }
@@ -371,6 +403,21 @@ function tenantOptions(tenants: Tenant[]) {
 
 function policyOptions(policies: Policy[]) {
   return policies.map((policy) => ({ label: policy.title, value: String(policy.id) }));
+}
+
+async function downloadApiFile(path: string, filename: string) {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+  const response = await fetch(`${apiUrl}${path}`, {
+    headers: getToken() ? { Authorization: `Bearer ${getToken()}` } : {},
+  });
+  if (!response.ok) throw new Error("Download failed");
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  window.URL.revokeObjectURL(url);
 }
 
 export function DashboardScreen() {
@@ -779,6 +826,14 @@ export function DocumentsScreen() {
               { header: "Size", cell: (row) => `${Math.ceil(row.file_size / 1024)} KB` },
               { header: "Linked", cell: (row) => row.linked_entity_type ? `${row.linked_entity_type} #${row.linked_entity_id ?? "-"}` : "None" },
               { header: "Uploaded", cell: (row) => new Date(row.created_at).toLocaleString() },
+              {
+                header: "File",
+                cell: (row) => (
+                  <button className="text-xs font-semibold text-primary" onClick={() => void downloadApiFile(`/api/documents/${row.id}/download`, row.filename)}>
+                    Download
+                  </button>
+                ),
+              },
             ]}
           />
         </Panel>
@@ -805,17 +860,28 @@ export function NotificationsScreen() {
               { header: "Due", cell: (row) => row.due_date ?? "None" },
               { header: "Status", cell: (row) => <StatusChip status={row.status} /> },
               {
-                header: "Update",
+                header: "Actions",
                 cell: (row) => (
-                  <button
-                    className="text-xs font-semibold text-primary"
-                    onClick={async () => {
-                      await apiRequest<NotificationRecord>(`/api/notifications/${row.id}`, { method: "PUT", body: JSON.stringify({ status: "read" }) });
-                      await data.reload();
-                    }}
-                  >
-                    Mark read
-                  </button>
+                  <div className="flex gap-3">
+                    <button
+                      className="text-xs font-semibold text-primary"
+                      onClick={async () => {
+                        await apiRequest<NotificationRecord>(`/api/notifications/${row.id}`, { method: "PUT", body: JSON.stringify({ status: "read" }) });
+                        await data.reload();
+                      }}
+                    >
+                      Mark read
+                    </button>
+                    <button
+                      className="text-xs font-semibold text-accent"
+                      onClick={async () => {
+                        await apiRequest(`/api/notifications/${row.id}/dispatch`, { method: "POST" });
+                        await data.reload();
+                      }}
+                    >
+                      Dispatch
+                    </button>
+                  </div>
                 ),
               },
             ]}
@@ -850,6 +916,11 @@ export function CalendarScreen() {
   return (
     <>
       <PageHeader title="Governance Calendar" description="Track reviews, meetings, audits, renewals, and accountable owners." />
+      <div className="mb-4">
+        <button className="rounded border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-slate-50" onClick={() => void downloadApiFile("/api/calendar-events/export.ics", "governance-calendar.ics")}>
+          Export ICS
+        </button>
+      </div>
       <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
         <Panel title="Calendar events">
           <DataTable
@@ -947,6 +1018,141 @@ export function WorkflowsScreen() {
   );
 }
 
+export function ComplianceScreen() {
+  const data = usePortalData();
+  if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
+
+  return (
+    <>
+      <PageHeader title="Compliance Obligations" description="Track internal, regulatory, and governance obligations with owners, due dates, and evidence." />
+      <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
+        <Panel title="Obligation register">
+          <DataTable
+            rows={data.complianceObligations}
+            empty="No compliance obligations found."
+            columns={[
+              { header: "Obligation", cell: (row) => <div><div className="font-semibold">{row.title}</div><div className="text-xs text-muted">{row.description}</div></div> },
+              { header: "Source", cell: (row) => row.source },
+              { header: "Owner", cell: (row) => data.users.find((user) => user.id === row.owner_id)?.name ?? "Unassigned" },
+              { header: "Due", cell: (row) => row.due_date ?? "None" },
+              { header: "Status", cell: (row) => <StatusChip status={row.status} /> },
+              {
+                header: "Update",
+                cell: (row) => (
+                  <select
+                    value={row.status}
+                    className="rounded border border-line bg-white px-2 py-1 text-xs"
+                    onChange={async (event) => {
+                      await apiRequest<ComplianceObligation>(`/api/compliance-obligations/${row.id}`, { method: "PUT", body: JSON.stringify({ status: event.target.value }) });
+                      await data.reload();
+                    }}
+                  >
+                    {complianceStatusOptions.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                ),
+              },
+            ]}
+          />
+        </Panel>
+        <CompactForm
+          title="Create obligation"
+          initialValues={{ tenant_id: String(data.tenants[0]?.id ?? ""), title: "", source: "internal", owner_id: "", due_date: nextMonth(), status: "not_started", description: "" }}
+          fields={[
+            { name: "tenant_id", label: "Tenant", type: "select", options: tenantOptions(data.tenants) },
+            { name: "title", label: "Title", required: true },
+            { name: "source", label: "Source", required: true },
+            { name: "owner_id", label: "Owner", type: "select", options: userOptions(data.users) },
+            { name: "due_date", label: "Due date", type: "date" },
+            { name: "status", label: "Status", type: "select", options: complianceStatusOptions, required: true },
+            { name: "description", label: "Description", type: "textarea" },
+          ]}
+          onSubmit={async (values) => {
+            await apiRequest<ComplianceObligation>("/api/compliance-obligations", {
+              method: "POST",
+              body: JSON.stringify({
+                ...values,
+                tenant_id: values.tenant_id ? Number(values.tenant_id) : null,
+                owner_id: values.owner_id ? Number(values.owner_id) : null,
+                due_date: values.due_date || null,
+              }),
+            });
+            await data.reload();
+          }}
+        />
+      </div>
+    </>
+  );
+}
+
+export function RisksScreen() {
+  const data = usePortalData();
+  if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
+
+  return (
+    <>
+      <PageHeader title="Risk Register" description="Track governance, compliance, operational, and vendor risks with severity and mitigation plans." />
+      <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
+        <Panel title="Risk register">
+          <DataTable
+            rows={data.risks}
+            empty="No risks found."
+            columns={[
+              { header: "Risk", cell: (row) => <div><div className="font-semibold">{row.title}</div><div className="text-xs text-muted">{row.mitigation_plan}</div></div> },
+              { header: "Category", cell: (row) => row.category },
+              { header: "Severity", cell: (row) => <StatusChip status={row.severity} /> },
+              { header: "Status", cell: (row) => <StatusChip status={row.status} /> },
+              { header: "Owner", cell: (row) => data.users.find((user) => user.id === row.owner_id)?.name ?? "Unassigned" },
+              {
+                header: "Update",
+                cell: (row) => (
+                  <select
+                    value={row.status}
+                    className="rounded border border-line bg-white px-2 py-1 text-xs"
+                    onChange={async (event) => {
+                      await apiRequest<Risk>(`/api/risks/${row.id}`, { method: "PUT", body: JSON.stringify({ status: event.target.value }) });
+                      await data.reload();
+                    }}
+                  >
+                    {riskStatusOptions.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                ),
+              },
+            ]}
+          />
+        </Panel>
+        <CompactForm
+          title="Create risk"
+          initialValues={{ tenant_id: String(data.tenants[0]?.id ?? ""), title: "", category: "governance", severity: "medium", status: "open", owner_id: "", mitigation_plan: "" }}
+          fields={[
+            { name: "tenant_id", label: "Tenant", type: "select", options: tenantOptions(data.tenants) },
+            { name: "title", label: "Title", required: true },
+            { name: "category", label: "Category", required: true },
+            { name: "severity", label: "Severity", type: "select", options: riskSeverityOptions, required: true },
+            { name: "status", label: "Status", type: "select", options: riskStatusOptions, required: true },
+            { name: "owner_id", label: "Owner", type: "select", options: userOptions(data.users) },
+            { name: "mitigation_plan", label: "Mitigation plan", type: "textarea" },
+          ]}
+          onSubmit={async (values) => {
+            await apiRequest<Risk>("/api/risks", {
+              method: "POST",
+              body: JSON.stringify({
+                ...values,
+                tenant_id: values.tenant_id ? Number(values.tenant_id) : null,
+                owner_id: values.owner_id ? Number(values.owner_id) : null,
+              }),
+            });
+            await data.reload();
+          }}
+        />
+      </div>
+    </>
+  );
+}
+
 export function ReportsScreen() {
   const data = usePortalData();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
@@ -1034,6 +1240,20 @@ export function IntegrationsScreen() {
               { header: "Type", cell: (row) => row.integration_type },
               { header: "Endpoint", cell: (row) => row.endpoint_url ?? "Manual" },
               { header: "Status", cell: (row) => <StatusChip status={row.status} /> },
+              {
+                header: "Sync",
+                cell: (row) => (
+                  <button
+                    className="text-xs font-semibold text-primary"
+                    onClick={async () => {
+                      await apiRequest(`/api/integrations/${row.id}/sync`, { method: "POST" });
+                      await data.reload();
+                    }}
+                  >
+                    Run
+                  </button>
+                ),
+              },
             ]}
           />
         </Panel>
@@ -1110,6 +1330,11 @@ export function AuditLogsScreen() {
   return (
     <>
       <PageHeader title="Audit Logs" description="Immutable audit trail for user actions, record changes, and governance activity." />
+      <div className="mb-4">
+        <button className="rounded border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-slate-50" onClick={() => void downloadApiFile("/api/audit-logs/export", "audit-logs.csv")}>
+          Export CSV
+        </button>
+      </div>
       <Panel title="Recent audit events">
         <DataTable
           rows={data.auditLogs}

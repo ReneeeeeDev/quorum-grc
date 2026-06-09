@@ -63,6 +63,7 @@ Default API URL: `http://localhost:8000`
 - [Architecture](docs/architecture.md)
 - [API reference](docs/api.md)
 - [Verification](docs/verification.md)
+- [Deployment](docs/deployment.md)
 - [Resume and interview notes](docs/resume-and-interview.md)
 
 ## Completed MVP Modules
@@ -77,4 +78,11 @@ Default API URL: `http://localhost:8000`
 - Approval workflow steps
 - SSO provider configuration
 - Risk/compliance integration registry
+- Compliance obligations
+- Risk register
+- Password reset
+- Audit CSV export
+- Calendar ICS export
+- S3/MinIO-compatible document storage
+- Alembic migration scaffold
 - Full-stack Docker Compose packaging

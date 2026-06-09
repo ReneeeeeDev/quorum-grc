@@ -40,3 +40,8 @@ flowchart LR
 - `WorkflowStep` stores ordered policy approval steps.
 - `IntegrationConnection` stores risk/compliance/vendor integration configuration.
 - `SSOProvider` stores enterprise identity provider configuration.
+- `ComplianceObligation` stores obligation ownership, due dates, status, and evidence references.
+- `Risk` stores register entries, severity, owner, status, and mitigation plans.
+- `PasswordResetToken` stores expiring password-reset token hashes.
+- `IntegrationSyncRun` stores integration sync job history.
+- `NotificationDelivery` stores notification dispatch attempts.

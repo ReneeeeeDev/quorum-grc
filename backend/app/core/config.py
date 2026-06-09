@@ -13,6 +13,14 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 480
     frontend_origin: str = "http://localhost:3000"
     file_storage_path: str = "storage/documents"
+    storage_backend: str = "local"
+    s3_bucket: str | None = None
+    s3_region: str | None = None
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    notification_from_email: str = "governance@example.com"
     sso_enabled: bool = False
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")

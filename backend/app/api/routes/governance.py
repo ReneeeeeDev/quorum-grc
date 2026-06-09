@@ -1,8 +1,11 @@
 from datetime import date
+from email.message import EmailMessage
 from pathlib import Path
+import smtplib
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi.responses import FileResponse, RedirectResponse, Response
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -15,19 +18,25 @@ from app.models import (
     ActionStatus,
     AuditLog,
     CalendarEvent,
+    ComplianceObligation,
     Decision,
     Department,
     Document,
+    DeliveryStatus,
     IntegrationConnection,
+    IntegrationSyncRun,
     IntegrationStatus,
     Meeting,
     Notification,
+    NotificationDelivery,
     NotificationStatus,
     Policy,
     PolicyStatus,
     Role,
+    Risk,
     SSOProvider,
     SSOProviderStatus,
+    SyncStatus,
     Tenant,
     User,
     WorkflowStep,
@@ -39,6 +48,9 @@ from app.schemas import (
     AuditLogRead,
     CalendarEventCreate,
     CalendarEventRead,
+    ComplianceObligationCreate,
+    ComplianceObligationRead,
+    ComplianceObligationUpdate,
     DecisionCreate,
     DecisionRead,
     DepartmentCreate,
@@ -47,15 +59,20 @@ from app.schemas import (
     DocumentRead,
     IntegrationConnectionCreate,
     IntegrationConnectionRead,
+    IntegrationSyncRunRead,
     MeetingCreate,
     MeetingRead,
     NotificationCreate,
+    NotificationDeliveryRead,
     NotificationRead,
     NotificationUpdate,
     PolicyCreate,
     PolicyRead,
     PolicyUpdate,
     ReportSummary,
+    RiskCreate,
+    RiskRead,
+    RiskUpdate,
     SSOLoginResponse,
     SSOProviderCreate,
     SSOProviderRead,
@@ -80,6 +97,13 @@ def get_or_404(db: Session, model: type, entity_id: int):
     return entity
 
 
+def scoped_query(db: Session, model: type, current_user: User):
+    query = db.query(model)
+    if current_user.role != Role.ADMIN and hasattr(model, "tenant_id"):
+        query = query.filter(model.tenant_id == current_user.tenant_id)
+    return query
+
+
 @router.get("/tenants", response_model=list[TenantRead])
 def list_tenants(db: Session = Depends(get_db), _: User = Depends(get_current_user)) -> list[Tenant]:
     return db.query(Tenant).order_by(Tenant.name).all()
@@ -101,8 +125,8 @@ def create_tenant(
 
 
 @router.get("/departments", response_model=list[DepartmentRead])
-def list_departments(db: Session = Depends(get_db), _: User = Depends(get_current_user)) -> list[Department]:
-    return db.query(Department).order_by(Department.name).all()
+def list_departments(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[Department]:
+    return scoped_query(db, Department, current_user).order_by(Department.name).all()
 
 
 @router.post("/departments", response_model=DepartmentRead, status_code=status.HTTP_201_CREATED)
@@ -121,8 +145,8 @@ def create_department(
 
 
 @router.get("/users", response_model=list[UserRead])
-def list_users(db: Session = Depends(get_db), _: User = Depends(get_current_user)) -> list[User]:
-    return db.query(User).order_by(User.name).all()
+def list_users(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[User]:
+    return scoped_query(db, User, current_user).order_by(User.name).all()
 
 
 @router.post("/users", response_model=UserRead, status_code=status.HTTP_201_CREATED)
@@ -144,8 +168,8 @@ def create_user(
 
 
 @router.get("/policies", response_model=list[PolicyRead])
-def list_policies(db: Session = Depends(get_db), _: User = Depends(get_current_user)) -> list[Policy]:
-    return db.query(Policy).order_by(Policy.updated_at.desc()).all()
+def list_policies(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[Policy]:
+    return scoped_query(db, Policy, current_user).order_by(Policy.updated_at.desc()).all()
 
 
 @router.post("/policies", response_model=PolicyRead, status_code=status.HTTP_201_CREATED)
@@ -192,8 +216,8 @@ def delete_policy(
 
 
 @router.get("/meetings", response_model=list[MeetingRead])
-def list_meetings(db: Session = Depends(get_db), _: User = Depends(get_current_user)) -> list[Meeting]:
-    return db.query(Meeting).order_by(Meeting.meeting_date.desc()).all()
+def list_meetings(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[Meeting]:
+    return scoped_query(db, Meeting, current_user).order_by(Meeting.meeting_date.desc()).all()
 
 
 @router.post("/meetings", response_model=MeetingRead, status_code=status.HTTP_201_CREATED)
@@ -212,8 +236,8 @@ def create_meeting(
 
 
 @router.get("/decisions", response_model=list[DecisionRead])
-def list_decisions(db: Session = Depends(get_db), _: User = Depends(get_current_user)) -> list[Decision]:
-    return db.query(Decision).order_by(Decision.decision_date.desc()).all()
+def list_decisions(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[Decision]:
+    return scoped_query(db, Decision, current_user).order_by(Decision.decision_date.desc()).all()
 
 
 @router.post("/decisions", response_model=DecisionRead, status_code=status.HTTP_201_CREATED)
@@ -232,8 +256,8 @@ def create_decision(
 
 
 @router.get("/action-items", response_model=list[ActionItemRead])
-def list_action_items(db: Session = Depends(get_db), _: User = Depends(get_current_user)) -> list[ActionItem]:
-    return db.query(ActionItem).order_by(ActionItem.due_date.asc()).all()
+def list_action_items(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[ActionItem]:
+    return scoped_query(db, ActionItem, current_user).order_by(ActionItem.due_date.asc()).all()
 
 
 @router.post("/action-items", response_model=ActionItemRead, status_code=status.HTTP_201_CREATED)
@@ -277,21 +301,28 @@ def update_action_item(
 
 
 @router.get("/reports", response_model=ReportSummary)
-def report_summary(db: Session = Depends(get_db), _: User = Depends(get_current_user)) -> ReportSummary:
+def report_summary(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> ReportSummary:
     today = date.today()
-    open_actions = db.query(func.count(ActionItem.id)).filter(ActionItem.status != ActionStatus.COMPLETE).scalar() or 0
+    actions_query = scoped_query(db, ActionItem, current_user)
+    policies_query = scoped_query(db, Policy, current_user)
+    meetings_query = scoped_query(db, Meeting, current_user)
+    notifications_query = scoped_query(db, Notification, current_user)
+    documents_query = scoped_query(db, Document, current_user)
+    integrations_query = scoped_query(db, IntegrationConnection, current_user)
+    open_actions = actions_query.filter(ActionItem.status != ActionStatus.COMPLETE).with_entities(func.count(ActionItem.id)).scalar() or 0
     overdue_items = (
-        db.query(func.count(ActionItem.id))
+        actions_query
         .filter(ActionItem.due_date < today, ActionItem.status != ActionStatus.COMPLETE)
+        .with_entities(func.count(ActionItem.id))
         .scalar()
         or 0
     )
-    published_policies = db.query(func.count(Policy.id)).filter(Policy.status == PolicyStatus.PUBLISHED).scalar() or 0
-    pending_approvals = db.query(func.count(Policy.id)).filter(Policy.status.in_([PolicyStatus.REVIEW, PolicyStatus.APPROVAL])).scalar() or 0
-    upcoming_meetings = db.query(func.count(Meeting.id)).filter(Meeting.meeting_date >= today).scalar() or 0
-    unread_notifications = db.query(func.count(Notification.id)).filter(Notification.status == NotificationStatus.UNREAD).scalar() or 0
-    documents = db.query(func.count(Document.id)).scalar() or 0
-    active_integrations = db.query(func.count(IntegrationConnection.id)).filter(IntegrationConnection.status == IntegrationStatus.CONFIGURED).scalar() or 0
+    published_policies = policies_query.filter(Policy.status == PolicyStatus.PUBLISHED).with_entities(func.count(Policy.id)).scalar() or 0
+    pending_approvals = policies_query.filter(Policy.status.in_([PolicyStatus.REVIEW, PolicyStatus.APPROVAL])).with_entities(func.count(Policy.id)).scalar() or 0
+    upcoming_meetings = meetings_query.filter(Meeting.meeting_date >= today).with_entities(func.count(Meeting.id)).scalar() or 0
+    unread_notifications = notifications_query.filter(Notification.status == NotificationStatus.UNREAD).with_entities(func.count(Notification.id)).scalar() or 0
+    documents = documents_query.with_entities(func.count(Document.id)).scalar() or 0
+    active_integrations = integrations_query.filter(IntegrationConnection.status == IntegrationStatus.CONFIGURED).with_entities(func.count(IntegrationConnection.id)).scalar() or 0
     return ReportSummary(
         open_actions=open_actions,
         overdue_items=overdue_items,
@@ -304,14 +335,78 @@ def report_summary(db: Session = Depends(get_db), _: User = Depends(get_current_
     )
 
 
+def audit_query(
+    db: Session,
+    action: str | None,
+    entity_type: str | None,
+    actor_id: int | None,
+):
+    query = db.query(AuditLog)
+    if action:
+        query = query.filter(AuditLog.action == action)
+    if entity_type:
+        query = query.filter(AuditLog.entity_type == entity_type)
+    if actor_id:
+        query = query.filter(AuditLog.actor_id == actor_id)
+    return query.order_by(AuditLog.created_at.desc())
+
+
 @router.get("/audit-logs", response_model=list[AuditLogRead])
-def list_audit_logs(db: Session = Depends(get_db), _: User = Depends(get_current_user)) -> list[AuditLog]:
-    return db.query(AuditLog).order_by(AuditLog.created_at.desc()).limit(100).all()
+def list_audit_logs(
+    action: str | None = Query(None),
+    entity_type: str | None = Query(None),
+    actor_id: int | None = Query(None),
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+) -> list[AuditLog]:
+    return audit_query(db, action, entity_type, actor_id).limit(100).all()
+
+
+@router.get("/audit-logs/export")
+def export_audit_logs(
+    action: str | None = Query(None),
+    entity_type: str | None = Query(None),
+    actor_id: int | None = Query(None),
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+) -> Response:
+    rows = audit_query(db, action, entity_type, actor_id).limit(1000).all()
+    lines = ["id,actor_id,action,entity_type,entity_id,created_at"]
+    lines.extend(f"{row.id},{row.actor_id or ''},{row.action},{row.entity_type},{row.entity_id or ''},{row.created_at.isoformat()}" for row in rows)
+    return Response("\n".join(lines), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=audit-logs.csv"})
 
 
 @router.get("/documents", response_model=list[DocumentRead])
-def list_documents(db: Session = Depends(get_db), _: User = Depends(get_current_user)) -> list[Document]:
-    return db.query(Document).order_by(Document.created_at.desc()).all()
+def list_documents(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[Document]:
+    return scoped_query(db, Document, current_user).order_by(Document.created_at.desc()).all()
+
+
+@router.get("/documents/{document_id}/download", response_model=None)
+def download_document(document_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> Response:
+    document = get_or_404(db, Document, document_id)
+    if current_user.role != Role.ADMIN and document.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot access this document")
+    if document.storage_path.startswith("s3://"):
+        settings = get_settings()
+        if not settings.s3_bucket:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="S3 bucket not configured")
+        try:
+            import boto3
+
+            key = document.storage_path.removeprefix(f"s3://{settings.s3_bucket}/")
+            client = boto3.client("s3", region_name=settings.s3_region)
+            url = client.generate_presigned_url(
+                "get_object",
+                Params={"Bucket": settings.s3_bucket, "Key": key},
+                ExpiresIn=300,
+            )
+            return RedirectResponse(url)
+        except Exception as exc:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"S3 download failed: {exc}") from exc
+    path = Path(document.storage_path)
+    if not path.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Stored file not found")
+    return FileResponse(path, media_type=document.content_type, filename=document.filename)
 
 
 @router.post("/documents", response_model=DocumentRead, status_code=status.HTTP_201_CREATED)
@@ -340,20 +435,34 @@ async def upload_document(
     current_user: User = Depends(require_write_user),
 ) -> Document:
     settings = get_settings()
-    storage_root = Path(settings.file_storage_path)
-    storage_root.mkdir(parents=True, exist_ok=True)
     safe_name = Path(file.filename or "document").name
     stored_name = f"{uuid4().hex}-{safe_name}"
-    target = storage_root / stored_name
     content = await file.read()
-    target.write_bytes(content)
+    if settings.storage_backend == "s3":
+        if not settings.s3_bucket:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="S3 bucket not configured")
+        try:
+            import boto3
+
+            key = f"documents/{stored_name}"
+            client = boto3.client("s3", region_name=settings.s3_region)
+            client.put_object(Bucket=settings.s3_bucket, Key=key, Body=content, ContentType=file.content_type or "application/octet-stream")
+            storage_path = f"s3://{settings.s3_bucket}/{key}"
+        except Exception as exc:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"S3 upload failed: {exc}") from exc
+    else:
+        storage_root = Path(settings.file_storage_path)
+        storage_root.mkdir(parents=True, exist_ok=True)
+        target = storage_root / stored_name
+        target.write_bytes(content)
+        storage_path = str(target)
     document = Document(
         tenant_id=tenant_id,
         title=title,
         filename=safe_name,
         content_type=file.content_type or "application/octet-stream",
         file_size=len(content),
-        storage_path=str(target),
+        storage_path=storage_path,
         linked_entity_type=linked_entity_type,
         linked_entity_id=linked_entity_id,
         uploaded_by=current_user.id,
@@ -368,8 +477,9 @@ async def upload_document(
 
 @router.get("/notifications", response_model=list[NotificationRead])
 def list_notifications(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[Notification]:
+    query = scoped_query(db, Notification, current_user)
     return (
-        db.query(Notification)
+        query
         .filter((Notification.user_id == current_user.id) | (Notification.user_id.is_(None)))
         .order_by(Notification.created_at.desc())
         .all()
@@ -408,9 +518,67 @@ def update_notification(
     return notification
 
 
+@router.post("/notifications/{notification_id}/dispatch", response_model=NotificationDeliveryRead)
+def dispatch_notification(
+    notification_id: int,
+    channel: str = "email",
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_write_user),
+) -> NotificationDelivery:
+    notification = get_or_404(db, Notification, notification_id)
+    recipient = None
+    if notification.user_id:
+        recipient_user = db.get(User, notification.user_id)
+        recipient = recipient_user.email if recipient_user else None
+    delivery = NotificationDelivery(notification_id=notification.id, channel=channel, recipient=recipient, status=DeliveryStatus.SENT)
+    settings = get_settings()
+    if channel == "email" and settings.smtp_host and recipient:
+        try:
+            message = EmailMessage()
+            message["From"] = settings.notification_from_email
+            message["To"] = recipient
+            message["Subject"] = notification.title
+            message.set_content(notification.message)
+            with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as smtp:
+                smtp.starttls()
+                if settings.smtp_username and settings.smtp_password:
+                    smtp.login(settings.smtp_username, settings.smtp_password)
+                smtp.send_message(message)
+        except Exception as exc:
+            delivery.status = DeliveryStatus.FAILED
+            delivery.error = str(exc)
+    db.add(delivery)
+    db.flush()
+    record_audit_log(db, action="notification.dispatched", entity_type="notification", entity_id=notification.id, actor_id=current_user.id)
+    db.commit()
+    db.refresh(delivery)
+    return delivery
+
+
 @router.get("/calendar-events", response_model=list[CalendarEventRead])
-def list_calendar_events(db: Session = Depends(get_db), _: User = Depends(get_current_user)) -> list[CalendarEvent]:
-    return db.query(CalendarEvent).order_by(CalendarEvent.event_date.asc()).all()
+def list_calendar_events(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[CalendarEvent]:
+    return scoped_query(db, CalendarEvent, current_user).order_by(CalendarEvent.event_date.asc()).all()
+
+
+@router.get("/calendar-events/export.ics")
+def export_calendar_ics(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> Response:
+    events = scoped_query(db, CalendarEvent, current_user).order_by(CalendarEvent.event_date.asc()).all()
+    lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Governance Management Portal//EN"]
+    for event in events:
+        event_date = event.event_date.strftime("%Y%m%d")
+        lines.extend(
+            [
+                "BEGIN:VEVENT",
+                f"UID:gmp-event-{event.id}",
+                f"DTSTAMP:{date.today().strftime('%Y%m%d')}T000000Z",
+                f"DTSTART;VALUE=DATE:{event_date}",
+                f"SUMMARY:{event.title}",
+                f"DESCRIPTION:{event.description or event.event_type}",
+                "END:VEVENT",
+            ]
+        )
+    lines.append("END:VCALENDAR")
+    return Response("\r\n".join(lines), media_type="text/calendar", headers={"Content-Disposition": "attachment; filename=governance-calendar.ics"})
 
 
 @router.post("/calendar-events", response_model=CalendarEventRead, status_code=status.HTTP_201_CREATED)
@@ -429,8 +597,8 @@ def create_calendar_event(
 
 
 @router.get("/workflow-steps", response_model=list[WorkflowStepRead])
-def list_workflow_steps(db: Session = Depends(get_db), _: User = Depends(get_current_user)) -> list[WorkflowStep]:
-    return db.query(WorkflowStep).order_by(WorkflowStep.policy_id, WorkflowStep.sequence).all()
+def list_workflow_steps(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[WorkflowStep]:
+    return scoped_query(db, WorkflowStep, current_user).order_by(WorkflowStep.policy_id, WorkflowStep.sequence).all()
 
 
 @router.post("/workflow-steps", response_model=WorkflowStepRead, status_code=status.HTTP_201_CREATED)
@@ -465,8 +633,8 @@ def update_workflow_step(
 
 
 @router.get("/integrations", response_model=list[IntegrationConnectionRead])
-def list_integrations(db: Session = Depends(get_db), _: User = Depends(get_current_user)) -> list[IntegrationConnection]:
-    return db.query(IntegrationConnection).order_by(IntegrationConnection.name).all()
+def list_integrations(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[IntegrationConnection]:
+    return scoped_query(db, IntegrationConnection, current_user).order_by(IntegrationConnection.name).all()
 
 
 @router.post("/integrations", response_model=IntegrationConnectionRead, status_code=status.HTTP_201_CREATED)
@@ -484,9 +652,30 @@ def create_integration(
     return integration
 
 
+@router.post("/integrations/{integration_id}/sync", response_model=IntegrationSyncRunRead)
+def sync_integration(
+    integration_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin_user),
+) -> IntegrationSyncRun:
+    integration = get_or_404(db, IntegrationConnection, integration_id)
+    sync_run = IntegrationSyncRun(
+        integration_id=integration.id,
+        status=SyncStatus.SUCCESS if integration.endpoint_url else SyncStatus.SKIPPED,
+        records_processed=0,
+        message="Sync job recorded. Add provider credentials to enable live data exchange." if integration.endpoint_url else "Manual integration has no endpoint.",
+    )
+    db.add(sync_run)
+    db.flush()
+    record_audit_log(db, action="integration.synced", entity_type="integration", entity_id=integration.id, actor_id=current_user.id)
+    db.commit()
+    db.refresh(sync_run)
+    return sync_run
+
+
 @router.get("/sso-providers", response_model=list[SSOProviderRead])
-def list_sso_providers(db: Session = Depends(get_db), _: User = Depends(get_current_user)) -> list[SSOProvider]:
-    return db.query(SSOProvider).order_by(SSOProvider.name).all()
+def list_sso_providers(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[SSOProvider]:
+    return scoped_query(db, SSOProvider, current_user).order_by(SSOProvider.name).all()
 
 
 @router.post("/sso-providers", response_model=SSOProviderRead, status_code=status.HTTP_201_CREATED)
@@ -520,3 +709,75 @@ def sso_login(provider_id: int, db: Session = Depends(get_db)) -> SSOLoginRespon
         redirect_url=provider.metadata_url,
         message="Redirect URL placeholder returned for MVP SSO handoff.",
     )
+
+
+@router.get("/compliance-obligations", response_model=list[ComplianceObligationRead])
+def list_compliance_obligations(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[ComplianceObligation]:
+    return scoped_query(db, ComplianceObligation, current_user).order_by(ComplianceObligation.due_date.asc()).all()
+
+
+@router.post("/compliance-obligations", response_model=ComplianceObligationRead, status_code=status.HTTP_201_CREATED)
+def create_compliance_obligation(
+    payload: ComplianceObligationCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_write_user),
+) -> ComplianceObligation:
+    obligation = ComplianceObligation(**payload.model_dump())
+    db.add(obligation)
+    db.flush()
+    record_audit_log(db, action="compliance_obligation.created", entity_type="compliance_obligation", entity_id=obligation.id, actor_id=current_user.id)
+    db.commit()
+    db.refresh(obligation)
+    return obligation
+
+
+@router.put("/compliance-obligations/{obligation_id}", response_model=ComplianceObligationRead)
+def update_compliance_obligation(
+    obligation_id: int,
+    payload: ComplianceObligationUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_write_user),
+) -> ComplianceObligation:
+    obligation = get_or_404(db, ComplianceObligation, obligation_id)
+    for key, value in payload.model_dump(exclude_unset=True).items():
+        setattr(obligation, key, value)
+    record_audit_log(db, action="compliance_obligation.updated", entity_type="compliance_obligation", entity_id=obligation.id, actor_id=current_user.id)
+    db.commit()
+    db.refresh(obligation)
+    return obligation
+
+
+@router.get("/risks", response_model=list[RiskRead])
+def list_risks(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[Risk]:
+    return scoped_query(db, Risk, current_user).order_by(Risk.created_at.desc()).all()
+
+
+@router.post("/risks", response_model=RiskRead, status_code=status.HTTP_201_CREATED)
+def create_risk(
+    payload: RiskCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_write_user),
+) -> Risk:
+    risk = Risk(**payload.model_dump())
+    db.add(risk)
+    db.flush()
+    record_audit_log(db, action="risk.created", entity_type="risk", entity_id=risk.id, actor_id=current_user.id)
+    db.commit()
+    db.refresh(risk)
+    return risk
+
+
+@router.put("/risks/{risk_id}", response_model=RiskRead)
+def update_risk(
+    risk_id: int,
+    payload: RiskUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_write_user),
+) -> Risk:
+    risk = get_or_404(db, Risk, risk_id)
+    for key, value in payload.model_dump(exclude_unset=True).items():
+        setattr(risk, key, value)
+    record_audit_log(db, action="risk.updated", entity_type="risk", entity_id=risk.id, actor_id=current_user.id)
+    db.commit()
+    db.refresh(risk)
+    return risk

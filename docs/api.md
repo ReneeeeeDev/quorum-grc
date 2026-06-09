@@ -7,6 +7,8 @@ Base URL: `http://localhost:8000`
 - `POST /api/auth/login`
 - `POST /api/auth/logout`
 - `GET /api/auth/me`
+- `POST /api/auth/password-reset/request`
+- `POST /api/auth/password-reset/confirm`
 
 ## Governance
 
@@ -32,19 +34,29 @@ Base URL: `http://localhost:8000`
 - `GET /api/documents`
 - `POST /api/documents`
 - `POST /api/documents/upload`
+- `GET /api/documents/{document_id}/download`
 - `GET /api/notifications`
 - `POST /api/notifications`
 - `PUT /api/notifications/{notification_id}`
+- `POST /api/notifications/{notification_id}/dispatch`
 - `GET /api/calendar-events`
 - `POST /api/calendar-events`
+- `GET /api/calendar-events/export.ics`
 - `GET /api/workflow-steps`
 - `POST /api/workflow-steps`
 - `PUT /api/workflow-steps/{step_id}`
 - `GET /api/integrations`
 - `POST /api/integrations`
+- `POST /api/integrations/{integration_id}/sync`
 - `GET /api/sso-providers`
 - `POST /api/sso-providers`
 - `GET /api/sso-providers/{provider_id}/login`
+- `GET /api/compliance-obligations`
+- `POST /api/compliance-obligations`
+- `PUT /api/compliance-obligations/{obligation_id}`
+- `GET /api/risks`
+- `POST /api/risks`
+- `PUT /api/risks/{risk_id}`
 
 ## RBAC Defaults
 
@@ -56,6 +68,8 @@ Base URL: `http://localhost:8000`
 
 ## MVP Integration Boundaries
 
-- Document upload uses local backend storage. S3/MinIO can replace this behind `FILE_STORAGE_PATH` later.
-- SSO provider records support SAML/OIDC configuration metadata and return a handoff response; full IdP assertion validation is intentionally outside this MVP.
-- Integration records store risk/compliance/vendor endpoints and status; connector-specific sync jobs can build on these records.
+- Document upload supports local storage and S3/MinIO-compatible storage through `STORAGE_BACKEND`.
+- SSO provider records support SAML/OIDC configuration metadata and return a handoff response; live assertion validation requires real IdP metadata and credentials.
+- Integration records store risk/compliance/vendor endpoints and sync-run history.
+- Audit logs support query filtering and CSV export.
+- Calendar events support ICS export.

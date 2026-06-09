@@ -12,7 +12,12 @@ from app.models.enums import (
     PolicyStatus,
     ReviewStatus,
     Role,
+    ComplianceStatus,
+    DeliveryStatus,
+    RiskSeverity,
+    RiskStatus,
     SSOProviderStatus,
+    SyncStatus,
     WorkflowStepStatus,
 )
 
@@ -255,3 +260,79 @@ class SSOProvider(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
     tenant: Mapped[Tenant | None] = relationship("Tenant")
+
+
+class NotificationDelivery(Base):
+    __tablename__ = "notification_deliveries"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    notification_id: Mapped[int] = mapped_column(ForeignKey("notifications.id"))
+    channel: Mapped[str] = mapped_column(String(40), default="email")
+    recipient: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    status: Mapped[DeliveryStatus] = mapped_column(Enum(DeliveryStatus), default=DeliveryStatus.PENDING)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+    notification: Mapped[Notification] = relationship("Notification")
+
+
+class IntegrationSyncRun(Base):
+    __tablename__ = "integration_sync_runs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    integration_id: Mapped[int] = mapped_column(ForeignKey("integration_connections.id"))
+    status: Mapped[SyncStatus] = mapped_column(Enum(SyncStatus), default=SyncStatus.SKIPPED)
+    records_processed: Mapped[int] = mapped_column(Integer, default=0)
+    message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+    integration: Mapped[IntegrationConnection] = relationship("IntegrationConnection")
+
+
+class ComplianceObligation(Base):
+    __tablename__ = "compliance_obligations"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tenant_id: Mapped[int | None] = mapped_column(ForeignKey("tenants.id"), nullable=True, index=True)
+    title: Mapped[str] = mapped_column(String(200), index=True)
+    source: Mapped[str] = mapped_column(String(160), default="internal")
+    owner_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    status: Mapped[ComplianceStatus] = mapped_column(Enum(ComplianceStatus), default=ComplianceStatus.NOT_STARTED)
+    evidence_document_id: Mapped[int | None] = mapped_column(ForeignKey("documents.id"), nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+    tenant: Mapped[Tenant | None] = relationship("Tenant")
+    owner: Mapped[User | None] = relationship("User")
+    evidence_document: Mapped[Document | None] = relationship("Document")
+
+
+class Risk(Base):
+    __tablename__ = "risks"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tenant_id: Mapped[int | None] = mapped_column(ForeignKey("tenants.id"), nullable=True, index=True)
+    title: Mapped[str] = mapped_column(String(200), index=True)
+    category: Mapped[str] = mapped_column(String(120), default="governance")
+    severity: Mapped[RiskSeverity] = mapped_column(Enum(RiskSeverity), default=RiskSeverity.MEDIUM)
+    status: Mapped[RiskStatus] = mapped_column(Enum(RiskStatus), default=RiskStatus.OPEN)
+    owner_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    mitigation_plan: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+    tenant: Mapped[Tenant | None] = relationship("Tenant")
+    owner: Mapped[User | None] = relationship("User")
+
+
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    token_hash: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+    user: Mapped[User] = relationship("User")

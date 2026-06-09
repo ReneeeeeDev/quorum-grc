@@ -56,3 +56,35 @@ class IntegrationStatus(StrEnum):
 class SSOProviderStatus(StrEnum):
     ENABLED = "enabled"
     DISABLED = "disabled"
+
+
+class RiskStatus(StrEnum):
+    OPEN = "open"
+    MITIGATING = "mitigating"
+    CLOSED = "closed"
+
+
+class RiskSeverity(StrEnum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+
+class ComplianceStatus(StrEnum):
+    NOT_STARTED = "not_started"
+    IN_PROGRESS = "in_progress"
+    COMPLIANT = "compliant"
+    NON_COMPLIANT = "non_compliant"
+
+
+class DeliveryStatus(StrEnum):
+    PENDING = "pending"
+    SENT = "sent"
+    FAILED = "failed"
+
+
+class SyncStatus(StrEnum):
+    SUCCESS = "success"
+    FAILED = "failed"
+    SKIPPED = "skipped"

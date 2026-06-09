@@ -7,6 +7,9 @@ export type CalendarEventType = "meeting" | "review" | "audit" | "renewal";
 export type WorkflowStepStatus = "pending" | "approved" | "rejected";
 export type IntegrationStatus = "configured" | "disabled";
 export type SSOProviderStatus = "enabled" | "disabled";
+export type ComplianceStatus = "not_started" | "in_progress" | "compliant" | "non_compliant";
+export type RiskStatus = "open" | "mitigating" | "closed";
+export type RiskSeverity = "low" | "medium" | "high" | "critical";
 
 export type User = {
   id: number;
@@ -164,5 +167,30 @@ export type SSOProvider = {
   provider_type: string;
   metadata_url: string | null;
   status: SSOProviderStatus;
+  created_at: string;
+};
+
+export type ComplianceObligation = {
+  id: number;
+  tenant_id: number | null;
+  title: string;
+  source: string;
+  owner_id: number | null;
+  due_date: string | null;
+  status: ComplianceStatus;
+  evidence_document_id: number | null;
+  description: string | null;
+  created_at: string;
+};
+
+export type Risk = {
+  id: number;
+  tenant_id: number | null;
+  title: string;
+  category: string;
+  severity: RiskSeverity;
+  status: RiskStatus;
+  owner_id: number | null;
+  mitigation_plan: string | null;
   created_at: string;
 };

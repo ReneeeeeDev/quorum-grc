@@ -6,10 +6,14 @@ from app.core.security import get_password_hash
 from app.models import (
     CalendarEvent,
     CalendarEventType,
+    ComplianceObligation,
     Department,
     IntegrationConnection,
     Notification,
     Policy,
+    Risk,
+    RiskSeverity,
+    RiskStatus,
     Role,
     SSOProvider,
     Tenant,
@@ -112,6 +116,27 @@ def seed_database(db: Session) -> None:
             name="Corporate Identity Provider",
             provider_type="saml",
             metadata_url="https://idp.example/metadata",
+        )
+    )
+    db.add(
+        ComplianceObligation(
+            tenant_id=tenant.id,
+            title="Annual board governance attestation",
+            source="internal",
+            owner_id=users[1].id,
+            due_date=date(2026, 8, 15),
+            description="Collect and retain evidence for annual governance attestation.",
+        )
+    )
+    db.add(
+        Risk(
+            tenant_id=tenant.id,
+            title="Delayed policy approval cycle",
+            category="governance",
+            severity=RiskSeverity.HIGH,
+            status=RiskStatus.MITIGATING,
+            owner_id=users[1].id,
+            mitigation_plan="Track overdue approvals through workflow steps and executive dashboard alerts.",
         )
     )
     db.commit()

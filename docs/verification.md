@@ -17,7 +17,8 @@ Smoke flow:
 4. Create a policy, meeting, decision, and action item.
 5. Confirm `/api/reports` updates and `/api/audit-logs` records mutating actions.
 6. Upload a document through `/api/documents/upload`.
-7. Create a calendar event, workflow step, integration, tenant, and SSO provider from the frontend.
+7. Create a calendar event, workflow step, integration, tenant, SSO provider, compliance obligation, and risk from the frontend.
+8. Export audit logs as CSV and calendar events as ICS.
 
 ## Frontend
 
@@ -26,6 +27,7 @@ cd frontend
 npm install
 npm run typecheck
 npm run build
+npm run e2e:smoke
 ```
 
 Smoke flow:
@@ -38,7 +40,7 @@ Smoke flow:
 ## Full Stack Docker
 
 ```bash
-docker compose up --build
+docker-compose up --build
 ```
 
 Then open `http://localhost:3000/login`.

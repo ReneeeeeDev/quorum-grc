@@ -31,6 +31,10 @@ It supports policy lifecycle management, committee governance, decision tracking
 - Configurable policy approval workflow steps.
 - SSO provider configuration and login handoff endpoint.
 - Risk/compliance integration connection registry.
+- Compliance obligation register.
+- Risk register.
+- Password reset.
+- Audit export and calendar ICS export.
 
 ## Seeded Demo Accounts
 
@@ -51,3 +55,7 @@ It supports policy lifecycle management, committee governance, decision tracking
 - Workflow approvals are configurable through ordered policy approval steps.
 - SSO providers are configurable with an MVP login handoff endpoint.
 - Risk and compliance integrations are represented through typed connection records.
+- Compliance obligations and risks are first-class modules with create/list/update APIs and frontend pages.
+- Audit logs can be filtered/exported as CSV.
+- Calendar events can be exported as ICS.
+- Notifications can be dispatched through SMTP when configured, or recorded as in-app delivery records.

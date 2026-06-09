@@ -14,6 +14,15 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
+class PasswordResetRequest(BaseModel):
+    email: str
+
+
+class PasswordResetConfirm(BaseModel):
+    token: str
+    new_password: str
+
+
 class UserRead(OrmModel):
     id: int
     tenant_id: int | None
