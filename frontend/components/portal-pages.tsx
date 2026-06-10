@@ -153,34 +153,89 @@ function DataTable<T>({
   columns: { header: string; cell: (row: T) => React.ReactNode }[];
   empty: string;
 }) {
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredRows = normalizedQuery
+    ? rows.filter((row) => JSON.stringify(row).toLowerCase().includes(normalizedQuery))
+    : rows;
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const visibleRows = filteredRows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  useEffect(() => {
+    setPage(1);
+  }, [query, rows.length]);
+
   if (!rows.length) {
     return <div className="rounded border border-dashed border-line px-4 py-8 text-center text-sm text-muted">{empty}</div>;
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[720px] border-collapse text-left text-sm">
-        <thead>
-          <tr className="border-b border-line bg-slate-50 text-xs uppercase text-muted">
-            {columns.map((column) => (
-              <th key={column.header} className="px-3 py-2 font-semibold">
-                {column.header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, index) => (
-            <tr key={index} className="border-b border-line last:border-0">
-              {columns.map((column) => (
-                <td key={column.header} className="px-3 py-3 align-top text-ink">
-                  {column.cell(row)}
-                </td>
+    <div className="space-y-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search records"
+          className="w-full rounded border border-line px-3 py-2 text-sm outline-none focus:border-primary sm:max-w-xs"
+        />
+        <div className="text-xs text-muted">
+          Showing {visibleRows.length} of {filteredRows.length} records
+        </div>
+      </div>
+      {!filteredRows.length ? (
+        <div className="rounded border border-dashed border-line px-4 py-8 text-center text-sm text-muted">No records match your search.</div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[720px] border-collapse text-left text-sm">
+            <thead>
+              <tr className="border-b border-line bg-slate-50 text-xs uppercase text-muted">
+                {columns.map((column) => (
+                  <th key={column.header} className="px-3 py-2 font-semibold">
+                    {column.header}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {visibleRows.map((row, index) => (
+                <tr key={`${currentPage}-${index}`} className="border-b border-line last:border-0">
+                  {columns.map((column) => (
+                    <td key={column.header} className="px-3 py-3 align-top text-ink">
+                      {column.cell(row)}
+                    </td>
+                  ))}
+                </tr>
               ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+            </tbody>
+          </table>
+        </div>
+      )}
+      {totalPages > 1 ? (
+        <div className="flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
+            disabled={currentPage === 1}
+            className="rounded border border-line px-3 py-1.5 text-xs font-semibold text-ink hover:bg-slate-50 disabled:opacity-50"
+          >
+            Previous
+          </button>
+          <span className="text-xs text-muted">
+            Page {currentPage} of {totalPages}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+            disabled={currentPage === totalPages}
+            className="rounded border border-line px-3 py-1.5 text-xs font-semibold text-ink hover:bg-slate-50 disabled:opacity-50"
+          >
+            Next
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -410,7 +465,7 @@ function policyOptions(policies: Policy[]) {
 }
 
 async function downloadApiFile(path: string, filename: string) {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "";
   const response = await fetch(`${apiUrl}${path}`, {
     headers: getToken() ? { Authorization: `Bearer ${getToken()}` } : {},
   });

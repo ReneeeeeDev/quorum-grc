@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     notification_from_email: str = "governance@example.com"
     sso_enabled: bool = False
     demo_seed_enabled: bool = True
+    rate_limit_per_minute: int = 120
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
