@@ -124,6 +124,17 @@ def main() -> None:
         public_policies.raise_for_status()
         if len(public_policies.json()) != 1:
             raise AssertionError("Tenant-scoped auditor should only see one public tenant policy")
+        public_notifications = client.get("/api/notifications", headers=public_headers)
+        public_notifications.raise_for_status()
+        public_unread = [notification for notification in public_notifications.json() if notification["status"] == "unread"]
+        public_report = client.get("/api/reports", headers=public_headers)
+        public_report.raise_for_status()
+        if public_report.json()["unread_notifications"] != len(public_unread):
+            raise AssertionError("Public auditor unread notification KPI should match visible unread notifications")
+        public_actions = client.get("/api/action-items", headers=public_headers)
+        public_actions.raise_for_status()
+        if public_actions.json():
+            raise AssertionError("Auditors should not receive action items from direct API calls")
 
         manager_login = client.post(
             "/api/auth/login",

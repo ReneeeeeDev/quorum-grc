@@ -111,8 +111,13 @@ def scoped_query(db: Session, model: type, current_user: User):
     if hasattr(model, "tenant_id"):
         query = query.filter(model.tenant_id == current_user.tenant_id)
 
-    if current_user.role in {Role.GOVERNANCE_OFFICER, Role.AUDITOR}:
+    if current_user.role == Role.GOVERNANCE_OFFICER:
         return query
+
+    if current_user.role == Role.AUDITOR:
+        if model in {User, Department, Policy, Meeting, Decision, Document, Notification, CalendarEvent, ComplianceObligation, Risk}:
+            return query
+        return query.filter(false())
 
     if current_user.role == Role.BOARD_MEMBER:
         if model is User:
@@ -153,6 +158,13 @@ def scoped_query(db: Session, model: type, current_user: User):
         return query.filter(false())
 
     return query
+
+
+def visible_notifications_query(db: Session, current_user: User):
+    query = scoped_query(db, Notification, current_user)
+    if current_user.role in {Role.ADMIN, Role.GOVERNANCE_OFFICER}:
+        return query
+    return query.filter(or_(Notification.user_id == current_user.id, Notification.user_id.is_(None)))
 
 
 def assert_entity_access(entity, current_user: User) -> None:
@@ -398,9 +410,9 @@ def report_summary(db: Session = Depends(get_db), current_user: User = Depends(g
     actions_query = scoped_query(db, ActionItem, current_user)
     policies_query = scoped_query(db, Policy, current_user)
     meetings_query = scoped_query(db, Meeting, current_user)
-    notifications_query = scoped_query(db, Notification, current_user)
+    notifications_query = visible_notifications_query(db, current_user)
     documents_query = scoped_query(db, Document, current_user)
-    integrations_query = scoped_query(db, IntegrationConnection, current_user)
+    integrations_query = scoped_query(db, IntegrationConnection, current_user) if current_user.role == Role.ADMIN else db.query(IntegrationConnection).filter(false())
     open_actions = actions_query.filter(ActionItem.status != ActionStatus.COMPLETE).with_entities(func.count(ActionItem.id)).scalar() or 0
     overdue_items = (
         actions_query
@@ -626,10 +638,9 @@ async def upload_document(
 
 @router.get("/notifications", response_model=list[NotificationRead])
 def list_notifications(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[Notification]:
-    query = scoped_query(db, Notification, current_user)
+    query = visible_notifications_query(db, current_user)
     return (
         query
-        .filter((Notification.user_id == current_user.id) | (Notification.user_id.is_(None)))
         .order_by(Notification.created_at.desc())
         .all()
     )
