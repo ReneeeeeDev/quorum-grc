@@ -125,6 +125,36 @@ def main() -> None:
         if len(public_policies.json()) != 1:
             raise AssertionError("Tenant-scoped auditor should only see one public tenant policy")
 
+        manager_login = client.post(
+            "/api/auth/login",
+            json={"email": "manager@gmp.local", "password": "Manager@123"},
+        )
+        manager_login.raise_for_status()
+        manager_headers = {"Authorization": f"Bearer {manager_login.json()['access_token']}"}
+        manager_policies = client.get("/api/policies", headers=manager_headers)
+        manager_policies.raise_for_status()
+        if len(manager_policies.json()) != 0:
+            raise AssertionError("Manager should not see tenant-wide policies they do not own")
+        manager_actions = client.get("/api/action-items", headers=manager_headers)
+        manager_actions.raise_for_status()
+        if len(manager_actions.json()) != 1:
+            raise AssertionError("Manager should only see assigned action items")
+
+        board_login = client.post(
+            "/api/auth/login",
+            json={"email": "board@gmp.local", "password": "Board@123"},
+        )
+        board_login.raise_for_status()
+        board_headers = {"Authorization": f"Bearer {board_login.json()['access_token']}"}
+        board_policies = client.get("/api/policies", headers=board_headers)
+        board_policies.raise_for_status()
+        if any(policy["status"] != "published" for policy in board_policies.json()):
+            raise AssertionError("Board members should only see published policies")
+        board_audit_logs = client.get("/api/audit-logs", headers=board_headers)
+        board_audit_logs.raise_for_status()
+        if board_audit_logs.json():
+            raise AssertionError("Board members should not see audit logs")
+
     print("Backend smoke check passed")
 
 

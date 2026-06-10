@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse, RedirectResponse, Response
-from sqlalchemy import func
+from sqlalchemy import false, func, or_
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, require_admin_user, require_write_user
@@ -105,14 +105,97 @@ def get_or_404(db: Session, model: type, entity_id: int):
 
 def scoped_query(db: Session, model: type, current_user: User):
     query = db.query(model)
-    if current_user.role != Role.ADMIN and hasattr(model, "tenant_id"):
+    if current_user.role == Role.ADMIN:
+        return query
+
+    if hasattr(model, "tenant_id"):
         query = query.filter(model.tenant_id == current_user.tenant_id)
+
+    if current_user.role in {Role.GOVERNANCE_OFFICER, Role.AUDITOR}:
+        return query
+
+    if current_user.role == Role.BOARD_MEMBER:
+        if model is User:
+            return query.filter(User.id == current_user.id)
+        if model is Policy:
+            return query.filter(Policy.status == PolicyStatus.PUBLISHED)
+        if model in {Department, Meeting, Decision, CalendarEvent, Notification}:
+            return query
+        if model is Document:
+            return query.filter(Document.linked_entity_type.in_(["policy", "meeting", "decision"]))
+        return query.filter(false())
+
+    if current_user.role == Role.MANAGER:
+        if model is User:
+            return query.filter(or_(User.id == current_user.id, User.department_id == current_user.department_id))
+        if model is Department:
+            return query.filter(Department.id == current_user.department_id)
+        if model is Policy:
+            return query.filter(Policy.owner_id == current_user.id)
+        if model is Meeting:
+            return query.filter(Meeting.committee_id == current_user.department_id)
+        if model is Decision:
+            return query.filter(Decision.owner_id == current_user.id)
+        if model is ActionItem:
+            return query.filter(ActionItem.assigned_to == current_user.id)
+        if model is Document:
+            return query.filter(Document.uploaded_by == current_user.id)
+        if model is Notification:
+            return query.filter(or_(Notification.user_id == current_user.id, Notification.user_id.is_(None)))
+        if model is CalendarEvent:
+            return query.filter(CalendarEvent.owner_id == current_user.id)
+        if model is WorkflowStep:
+            return query.filter(WorkflowStep.approver_id == current_user.id)
+        if model is ComplianceObligation:
+            return query.filter(ComplianceObligation.owner_id == current_user.id)
+        if model is Risk:
+            return query.filter(Risk.owner_id == current_user.id)
+        return query.filter(false())
+
     return query
 
 
+def assert_entity_access(entity, current_user: User) -> None:
+    if current_user.role == Role.ADMIN:
+        return
+    if hasattr(entity, "tenant_id") and entity.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot access this tenant record")
+
+
+def force_tenant(data: dict, current_user: User) -> dict:
+    if current_user.role != Role.ADMIN and "tenant_id" in data:
+        data["tenant_id"] = current_user.tenant_id
+    return data
+
+
+def assert_write_access(entity, current_user: User) -> None:
+    assert_entity_access(entity, current_user)
+    if current_user.role in {Role.ADMIN, Role.GOVERNANCE_OFFICER}:
+        return
+    if current_user.role == Role.MANAGER:
+        allowed = (
+            (isinstance(entity, Policy) and entity.owner_id == current_user.id)
+            or (isinstance(entity, Meeting) and entity.committee_id == current_user.department_id)
+            or (isinstance(entity, Decision) and entity.owner_id == current_user.id)
+            or (isinstance(entity, ActionItem) and entity.assigned_to == current_user.id)
+            or (isinstance(entity, Document) and entity.uploaded_by == current_user.id)
+            or (isinstance(entity, Notification) and entity.user_id in (None, current_user.id))
+            or (isinstance(entity, CalendarEvent) and entity.owner_id == current_user.id)
+            or (isinstance(entity, WorkflowStep) and entity.approver_id == current_user.id)
+            or (isinstance(entity, ComplianceObligation) and entity.owner_id == current_user.id)
+            or (isinstance(entity, Risk) and entity.owner_id == current_user.id)
+        )
+        if allowed:
+            return
+    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot modify this role-scoped record")
+
+
 @router.get("/tenants", response_model=list[TenantRead])
-def list_tenants(db: Session = Depends(get_db), _: User = Depends(get_current_user)) -> list[Tenant]:
-    return db.query(Tenant).order_by(Tenant.name).all()
+def list_tenants(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[Tenant]:
+    query = db.query(Tenant)
+    if current_user.role != Role.ADMIN:
+        query = query.filter(Tenant.id == current_user.tenant_id)
+    return query.order_by(Tenant.name).all()
 
 
 @router.post("/tenants", response_model=TenantRead, status_code=status.HTTP_201_CREATED)
@@ -141,7 +224,7 @@ def create_department(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_user),
 ) -> Department:
-    department = Department(**payload.model_dump())
+    department = Department(**force_tenant(payload.model_dump(), current_user))
     db.add(department)
     db.flush()
     record_audit_log(db, action="department.created", entity_type="department", entity_id=department.id, actor_id=current_user.id)
@@ -163,7 +246,7 @@ def create_user(
 ) -> User:
     if db.query(User).filter(User.email == payload.email).first():
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already exists")
-    data = payload.model_dump(exclude={"password"})
+    data = force_tenant(payload.model_dump(exclude={"password"}), current_user)
     user = User(**data, hashed_password=get_password_hash(payload.password))
     db.add(user)
     db.flush()
@@ -184,7 +267,7 @@ def create_policy(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_write_user),
 ) -> Policy:
-    policy = Policy(**payload.model_dump())
+    policy = Policy(**force_tenant(payload.model_dump(), current_user))
     db.add(policy)
     db.flush()
     record_audit_log(db, action="policy.created", entity_type="policy", entity_id=policy.id, actor_id=current_user.id)
@@ -201,6 +284,7 @@ def update_policy(
     current_user: User = Depends(require_write_user),
 ) -> Policy:
     policy = get_or_404(db, Policy, policy_id)
+    assert_write_access(policy, current_user)
     for key, value in payload.model_dump(exclude_unset=True).items():
         setattr(policy, key, value)
     record_audit_log(db, action="policy.updated", entity_type="policy", entity_id=policy.id, actor_id=current_user.id)
@@ -216,6 +300,7 @@ def delete_policy(
     current_user: User = Depends(require_write_user),
 ) -> None:
     policy = get_or_404(db, Policy, policy_id)
+    assert_write_access(policy, current_user)
     db.delete(policy)
     record_audit_log(db, action="policy.deleted", entity_type="policy", entity_id=policy_id, actor_id=current_user.id)
     db.commit()
@@ -232,7 +317,7 @@ def create_meeting(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_write_user),
 ) -> Meeting:
-    meeting = Meeting(**payload.model_dump())
+    meeting = Meeting(**force_tenant(payload.model_dump(), current_user))
     db.add(meeting)
     db.flush()
     record_audit_log(db, action="meeting.created", entity_type="meeting", entity_id=meeting.id, actor_id=current_user.id)
@@ -252,7 +337,7 @@ def create_decision(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_write_user),
 ) -> Decision:
-    decision = Decision(**payload.model_dump())
+    decision = Decision(**force_tenant(payload.model_dump(), current_user))
     db.add(decision)
     db.flush()
     record_audit_log(db, action="decision.created", entity_type="decision", entity_id=decision.id, actor_id=current_user.id)
@@ -272,7 +357,7 @@ def create_action_item(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_write_user),
 ) -> ActionItem:
-    item = ActionItem(**payload.model_dump())
+    item = ActionItem(**force_tenant(payload.model_dump(), current_user))
     db.add(item)
     db.flush()
     db.add(
@@ -298,6 +383,7 @@ def update_action_item(
     current_user: User = Depends(require_write_user),
 ) -> ActionItem:
     item = get_or_404(db, ActionItem, action_item_id)
+    assert_write_access(item, current_user)
     for key, value in payload.model_dump(exclude_unset=True).items():
         setattr(item, key, value)
     record_audit_log(db, action="action_item.updated", entity_type="action_item", entity_id=item.id, actor_id=current_user.id)
@@ -383,6 +469,7 @@ def export_reports(db: Session = Depends(get_db), current_user: User = Depends(g
 
 def audit_query(
     db: Session,
+    current_user: User,
     action: str | None,
     entity_type: str | None,
     actor_id: int | None,
@@ -390,6 +477,12 @@ def audit_query(
     date_to: date | None = None,
 ):
     query = db.query(AuditLog)
+    if current_user.role == Role.MANAGER:
+        query = query.filter(AuditLog.actor_id == current_user.id)
+    elif current_user.role == Role.BOARD_MEMBER:
+        query = query.filter(false())
+    elif current_user.role != Role.ADMIN:
+        query = query.join(User, AuditLog.actor_id == User.id).filter(User.tenant_id == current_user.tenant_id)
     if action:
         query = query.filter(AuditLog.action == action)
     if entity_type:
@@ -411,9 +504,9 @@ def list_audit_logs(
     date_from: date | None = Query(None),
     date_to: date | None = Query(None),
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> list[AuditLog]:
-    return audit_query(db, action, entity_type, actor_id, date_from, date_to).limit(100).all()
+    return audit_query(db, current_user, action, entity_type, actor_id, date_from, date_to).limit(100).all()
 
 
 @router.get("/audit-logs/export")
@@ -424,9 +517,9 @@ def export_audit_logs(
     date_from: date | None = Query(None),
     date_to: date | None = Query(None),
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> Response:
-    rows = audit_query(db, action, entity_type, actor_id, date_from, date_to).limit(1000).all()
+    rows = audit_query(db, current_user, action, entity_type, actor_id, date_from, date_to).limit(1000).all()
     lines = ["id,actor_id,action,entity_type,entity_id,created_at"]
     lines.extend(f"{row.id},{row.actor_id or ''},{row.action},{row.entity_type},{row.entity_id or ''},{row.created_at.isoformat()}" for row in rows)
     return Response("\n".join(lines), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=audit-logs.csv"})
@@ -471,7 +564,7 @@ def create_document_metadata(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_write_user),
 ) -> Document:
-    document = Document(**payload.model_dump(), uploaded_by=current_user.id)
+    document = Document(**force_tenant(payload.model_dump(), current_user), uploaded_by=current_user.id)
     db.add(document)
     db.flush()
     record_audit_log(db, action="document.created", entity_type="document", entity_id=document.id, actor_id=current_user.id)
@@ -513,7 +606,7 @@ async def upload_document(
         target.write_bytes(content)
         storage_path = str(target)
     document = Document(
-        tenant_id=tenant_id,
+        tenant_id=current_user.tenant_id if current_user.role != Role.ADMIN else tenant_id,
         title=title,
         filename=safe_name,
         content_type=file.content_type or "application/octet-stream",
@@ -548,7 +641,7 @@ def create_notification(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_write_user),
 ) -> Notification:
-    notification = Notification(**payload.model_dump())
+    notification = Notification(**force_tenant(payload.model_dump(), current_user))
     db.add(notification)
     db.flush()
     record_audit_log(db, action="notification.created", entity_type="notification", entity_id=notification.id, actor_id=current_user.id)
@@ -565,6 +658,7 @@ def update_notification(
     current_user: User = Depends(get_current_user),
 ) -> Notification:
     notification = get_or_404(db, Notification, notification_id)
+    assert_entity_access(notification, current_user)
     if notification.user_id not in (None, current_user.id) and current_user.role != Role.ADMIN:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot update this notification")
     for key, value in payload.model_dump(exclude_unset=True).items():
@@ -582,6 +676,7 @@ def dispatch_notification(
     current_user: User = Depends(require_write_user),
 ) -> NotificationDelivery:
     notification = get_or_404(db, Notification, notification_id)
+    assert_write_access(notification, current_user)
     recipient = None
     if notification.user_id:
         recipient_user = db.get(User, notification.user_id)
@@ -643,7 +738,7 @@ def create_calendar_event(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_write_user),
 ) -> CalendarEvent:
-    event = CalendarEvent(**payload.model_dump())
+    event = CalendarEvent(**force_tenant(payload.model_dump(), current_user))
     db.add(event)
     db.flush()
     record_audit_log(db, action="calendar_event.created", entity_type="calendar_event", entity_id=event.id, actor_id=current_user.id)
@@ -663,7 +758,7 @@ def create_workflow_step(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_write_user),
 ) -> WorkflowStep:
-    step = WorkflowStep(**payload.model_dump())
+    step = WorkflowStep(**force_tenant(payload.model_dump(), current_user))
     db.add(step)
     db.flush()
     record_audit_log(db, action="workflow_step.created", entity_type="workflow_step", entity_id=step.id, actor_id=current_user.id)
@@ -680,6 +775,7 @@ def update_workflow_step(
     current_user: User = Depends(require_write_user),
 ) -> WorkflowStep:
     step = get_or_404(db, WorkflowStep, step_id)
+    assert_write_access(step, current_user)
     for key, value in payload.model_dump(exclude_unset=True).items():
         setattr(step, key, value)
     record_audit_log(db, action="workflow_step.updated", entity_type="workflow_step", entity_id=step.id, actor_id=current_user.id)
@@ -699,7 +795,7 @@ def create_integration(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_user),
 ) -> IntegrationConnection:
-    integration = IntegrationConnection(**payload.model_dump())
+    integration = IntegrationConnection(**force_tenant(payload.model_dump(), current_user))
     db.add(integration)
     db.flush()
     record_audit_log(db, action="integration.created", entity_type="integration", entity_id=integration.id, actor_id=current_user.id)
@@ -715,6 +811,7 @@ def sync_integration(
     current_user: User = Depends(require_admin_user),
 ) -> IntegrationSyncRun:
     integration = get_or_404(db, IntegrationConnection, integration_id)
+    assert_write_access(integration, current_user)
     sync_run = IntegrationSyncRun(
         integration_id=integration.id,
         status=SyncStatus.SUCCESS if integration.endpoint_url else SyncStatus.SKIPPED,
@@ -740,7 +837,7 @@ def create_sso_provider(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_user),
 ) -> SSOProvider:
-    provider = SSOProvider(**payload.model_dump())
+    provider = SSOProvider(**force_tenant(payload.model_dump(), current_user))
     db.add(provider)
     db.flush()
     record_audit_log(db, action="sso_provider.created", entity_type="sso_provider", entity_id=provider.id, actor_id=current_user.id)
@@ -812,7 +909,7 @@ def create_compliance_obligation(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_write_user),
 ) -> ComplianceObligation:
-    obligation = ComplianceObligation(**payload.model_dump())
+    obligation = ComplianceObligation(**force_tenant(payload.model_dump(), current_user))
     db.add(obligation)
     db.flush()
     record_audit_log(db, action="compliance_obligation.created", entity_type="compliance_obligation", entity_id=obligation.id, actor_id=current_user.id)
@@ -829,6 +926,7 @@ def update_compliance_obligation(
     current_user: User = Depends(require_write_user),
 ) -> ComplianceObligation:
     obligation = get_or_404(db, ComplianceObligation, obligation_id)
+    assert_write_access(obligation, current_user)
     for key, value in payload.model_dump(exclude_unset=True).items():
         setattr(obligation, key, value)
     record_audit_log(db, action="compliance_obligation.updated", entity_type="compliance_obligation", entity_id=obligation.id, actor_id=current_user.id)
@@ -848,7 +946,7 @@ def create_risk(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_write_user),
 ) -> Risk:
-    risk = Risk(**payload.model_dump())
+    risk = Risk(**force_tenant(payload.model_dump(), current_user))
     db.add(risk)
     db.flush()
     record_audit_log(db, action="risk.created", entity_type="risk", entity_id=risk.id, actor_id=current_user.id)
@@ -865,6 +963,7 @@ def update_risk(
     current_user: User = Depends(require_write_user),
 ) -> Risk:
     risk = get_or_404(db, Risk, risk_id)
+    assert_write_access(risk, current_user)
     for key, value in payload.model_dump(exclude_unset=True).items():
         setattr(risk, key, value)
     record_audit_log(db, action="risk.updated", entity_type="risk", entity_id=risk.id, actor_id=current_user.id)

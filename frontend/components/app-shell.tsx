@@ -28,32 +28,39 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "@/lib/auth";
+import type { Role } from "@/lib/types";
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/policies", label: "Policies", icon: FileText },
-  { href: "/departments", label: "Committees", icon: Users },
-  { href: "/meetings", label: "Meetings", icon: CalendarDays },
-  { href: "/decisions", label: "Decisions", icon: Gavel },
-  { href: "/actions", label: "Actions", icon: ClipboardCheck },
-  { href: "/documents", label: "Documents", icon: Paperclip },
-  { href: "/notifications", label: "Notifications", icon: Bell },
-  { href: "/calendar", label: "Calendar", icon: CalendarDays },
-  { href: "/workflows", label: "Workflows", icon: GitPullRequest },
-  { href: "/compliance", label: "Compliance", icon: Landmark },
-  { href: "/risks", label: "Risks", icon: Radar },
-  { href: "/reports", label: "Reports", icon: BarChart3 },
-  { href: "/audit-logs", label: "Audit Logs", icon: ScrollText },
-  { href: "/tenants", label: "Tenants", icon: Network },
-  { href: "/integrations", label: "Integrations", icon: Plug },
-  { href: "/sso", label: "SSO", icon: KeyRound },
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["Admin", "Governance Officer", "Manager", "Auditor", "Board Member"] },
+  { href: "/policies", label: "Policies", icon: FileText, roles: ["Admin", "Governance Officer", "Manager", "Auditor", "Board Member"] },
+  { href: "/departments", label: "Committees", icon: Users, roles: ["Admin", "Governance Officer", "Manager", "Auditor", "Board Member"] },
+  { href: "/meetings", label: "Meetings", icon: CalendarDays, roles: ["Admin", "Governance Officer", "Manager", "Auditor", "Board Member"] },
+  { href: "/decisions", label: "Decisions", icon: Gavel, roles: ["Admin", "Governance Officer", "Manager", "Auditor", "Board Member"] },
+  { href: "/actions", label: "Actions", icon: ClipboardCheck, roles: ["Admin", "Governance Officer", "Manager"] },
+  { href: "/documents", label: "Documents", icon: Paperclip, roles: ["Admin", "Governance Officer", "Manager", "Auditor", "Board Member"] },
+  { href: "/notifications", label: "Notifications", icon: Bell, roles: ["Admin", "Governance Officer", "Manager", "Auditor", "Board Member"] },
+  { href: "/calendar", label: "Calendar", icon: CalendarDays, roles: ["Admin", "Governance Officer", "Manager", "Auditor", "Board Member"] },
+  { href: "/workflows", label: "Workflows", icon: GitPullRequest, roles: ["Admin", "Governance Officer", "Manager"] },
+  { href: "/compliance", label: "Compliance", icon: Landmark, roles: ["Admin", "Governance Officer", "Manager", "Auditor"] },
+  { href: "/risks", label: "Risks", icon: Radar, roles: ["Admin", "Governance Officer", "Manager", "Auditor"] },
+  { href: "/reports", label: "Reports", icon: BarChart3, roles: ["Admin", "Governance Officer", "Manager", "Auditor", "Board Member"] },
+  { href: "/audit-logs", label: "Audit Logs", icon: ScrollText, roles: ["Admin", "Governance Officer", "Auditor"] },
+  { href: "/tenants", label: "Tenants", icon: Network, roles: ["Admin"] },
+  { href: "/integrations", label: "Integrations", icon: Plug, roles: ["Admin"] },
+  { href: "/sso", label: "SSO", icon: KeyRound, roles: ["Admin"] },
+  { href: "/settings", label: "Settings", icon: Settings, roles: ["Admin"] },
 ];
+
+function visibleNavItems(role: Role | undefined) {
+  if (!role) return navItems;
+  return navItems.filter((item) => item.roles.includes(role));
+}
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const navigation = visibleNavItems(user?.role);
 
   if (pathname === "/login") {
     return <>{children}</>;
@@ -72,7 +79,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
         <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-4">
-          {navItems.map((item) => {
+          {navigation.map((item) => {
             const Icon = item.icon;
             const active = pathname === item.href;
             return (
@@ -150,7 +157,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </button>
               </div>
               <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-4">
-                {navItems.map((item) => {
+                {navigation.map((item) => {
                   const Icon = item.icon;
                   const active = pathname === item.href;
                   return (
