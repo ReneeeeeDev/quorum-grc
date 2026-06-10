@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from email.message import EmailMessage
 from pathlib import Path
 import smtplib
@@ -12,13 +12,14 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, require_admin_user, require_write_user
 from app.core.config import get_settings
 from app.core.database import get_db
-from app.core.security import get_password_hash
+from app.core.security import create_access_token, get_password_hash
 from app.models import (
     ActionItem,
     ActionStatus,
     AuditLog,
     CalendarEvent,
     ComplianceObligation,
+    ComplianceStatus,
     Decision,
     Department,
     Document,
@@ -34,6 +35,7 @@ from app.models import (
     PolicyStatus,
     Role,
     Risk,
+    RiskSeverity,
     SSOProvider,
     SSOProviderStatus,
     SyncStatus,
@@ -73,6 +75,10 @@ from app.schemas import (
     RiskCreate,
     RiskRead,
     RiskUpdate,
+    ReportBreakdown,
+    ReportBreakdownItem,
+    SSOCallbackRequest,
+    SSOCallbackResponse,
     SSOLoginResponse,
     SSOProviderCreate,
     SSOProviderRead,
@@ -335,11 +341,53 @@ def report_summary(db: Session = Depends(get_db), current_user: User = Depends(g
     )
 
 
+def enum_breakdown(query, model_field, values: list[str]) -> list[ReportBreakdownItem]:
+    rows = dict(query.with_entities(model_field, func.count()).group_by(model_field).all())
+    return [ReportBreakdownItem(label=value, value=rows.get(value, 0)) for value in values]
+
+
+@router.get("/reports/breakdown", response_model=ReportBreakdown)
+def report_breakdown(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> ReportBreakdown:
+    today = date.today()
+    next_quarter = today + timedelta(days=90)
+    meetings = scoped_query(db, Meeting, current_user).filter(Meeting.meeting_date >= today, Meeting.meeting_date <= next_quarter).all()
+    meeting_months: dict[str, int] = {}
+    for meeting in meetings:
+        label = meeting.meeting_date.strftime("%Y-%m")
+        meeting_months[label] = meeting_months.get(label, 0) + 1
+
+    return ReportBreakdown(
+        policy_status=enum_breakdown(scoped_query(db, Policy, current_user), Policy.status, [status.value for status in PolicyStatus]),
+        action_status=enum_breakdown(scoped_query(db, ActionItem, current_user), ActionItem.status, [status.value for status in ActionStatus]),
+        risk_severity=enum_breakdown(scoped_query(db, Risk, current_user), Risk.severity, [severity.value for severity in RiskSeverity]),
+        compliance_status=enum_breakdown(scoped_query(db, ComplianceObligation, current_user), ComplianceObligation.status, [status.value for status in ComplianceStatus]),
+        upcoming_meetings_by_month=[
+            ReportBreakdownItem(label=label, value=meeting_months[label])
+            for label in sorted(meeting_months)
+        ],
+    )
+
+
+@router.get("/reports/export")
+def export_reports(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> Response:
+    summary = report_summary(db, current_user)
+    breakdown = report_breakdown(db, current_user)
+    lines = ["section,label,value"]
+    for key, value in summary.model_dump().items():
+        lines.append(f"summary,{key},{value}")
+    for section, values in breakdown.model_dump().items():
+        for item in values:
+            lines.append(f"{section},{item['label']},{item['value']}")
+    return Response("\n".join(lines), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=governance-report.csv"})
+
+
 def audit_query(
     db: Session,
     action: str | None,
     entity_type: str | None,
     actor_id: int | None,
+    date_from: date | None = None,
+    date_to: date | None = None,
 ):
     query = db.query(AuditLog)
     if action:
@@ -348,6 +396,10 @@ def audit_query(
         query = query.filter(AuditLog.entity_type == entity_type)
     if actor_id:
         query = query.filter(AuditLog.actor_id == actor_id)
+    if date_from:
+        query = query.filter(func.date(AuditLog.created_at) >= date_from)
+    if date_to:
+        query = query.filter(func.date(AuditLog.created_at) <= date_to)
     return query.order_by(AuditLog.created_at.desc())
 
 
@@ -356,10 +408,12 @@ def list_audit_logs(
     action: str | None = Query(None),
     entity_type: str | None = Query(None),
     actor_id: int | None = Query(None),
+    date_from: date | None = Query(None),
+    date_to: date | None = Query(None),
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ) -> list[AuditLog]:
-    return audit_query(db, action, entity_type, actor_id).limit(100).all()
+    return audit_query(db, action, entity_type, actor_id, date_from, date_to).limit(100).all()
 
 
 @router.get("/audit-logs/export")
@@ -367,10 +421,12 @@ def export_audit_logs(
     action: str | None = Query(None),
     entity_type: str | None = Query(None),
     actor_id: int | None = Query(None),
+    date_from: date | None = Query(None),
+    date_to: date | None = Query(None),
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ) -> Response:
-    rows = audit_query(db, action, entity_type, actor_id).limit(1000).all()
+    rows = audit_query(db, action, entity_type, actor_id, date_from, date_to).limit(1000).all()
     lines = ["id,actor_id,action,entity_type,entity_id,created_at"]
     lines.extend(f"{row.id},{row.actor_id or ''},{row.action},{row.entity_type},{row.entity_id or ''},{row.created_at.isoformat()}" for row in rows)
     return Response("\n".join(lines), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=audit-logs.csv"})
@@ -708,6 +764,40 @@ def sso_login(provider_id: int, db: Session = Depends(get_db)) -> SSOLoginRespon
         status="ready",
         redirect_url=provider.metadata_url,
         message="Redirect URL placeholder returned for MVP SSO handoff.",
+    )
+
+
+@router.post("/sso-providers/callback", response_model=SSOCallbackResponse)
+def sso_callback(payload: SSOCallbackRequest, db: Session = Depends(get_db)) -> SSOCallbackResponse:
+    provider = get_or_404(db, SSOProvider, payload.provider_id)
+    if provider.status != SSOProviderStatus.ENABLED:
+        return SSOCallbackResponse(
+            provider_id=provider.id,
+            status="disabled",
+            email=payload.email,
+            access_token=None,
+            message="SSO provider is disabled.",
+        )
+
+    user = db.query(User).filter(User.email == payload.email).first()
+    if user is None:
+        return SSOCallbackResponse(
+            provider_id=provider.id,
+            status="unmapped_user",
+            email=payload.email,
+            access_token=None,
+            message="No portal user is mapped to this identity provider email.",
+        )
+
+    access_token = create_access_token(subject=user.email)
+    record_audit_log(db, action="sso.login", entity_type="user", entity_id=user.id, actor_id=user.id)
+    db.commit()
+    return SSOCallbackResponse(
+        provider_id=provider.id,
+        status="authenticated",
+        email=user.email,
+        access_token=access_token,
+        message="SSO identity mapped to portal user.",
     )
 
 

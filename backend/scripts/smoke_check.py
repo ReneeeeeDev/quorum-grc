@@ -71,6 +71,35 @@ def main() -> None:
         if report_response.json() != expected_report:
             raise AssertionError(f"/api/reports mismatch: {report_response.json()}")
 
+        report_breakdown = client.get("/api/reports/breakdown", headers=headers)
+        report_breakdown.raise_for_status()
+        breakdown = report_breakdown.json()
+        if len(breakdown["policy_status"]) != 5 or len(breakdown["action_status"]) != 4:
+            raise AssertionError("Report breakdown did not include expected status groups")
+
+        report_export = client.get("/api/reports/export", headers=headers)
+        report_export.raise_for_status()
+        if "summary,open_actions,6" not in report_export.text:
+            raise AssertionError("Report export did not include summary KPIs")
+
+        audit_filter = client.get("/api/audit-logs", params={"entity_type": "policy"}, headers=headers)
+        audit_filter.raise_for_status()
+        if not audit_filter.json() or any(row["entity_type"] != "policy" for row in audit_filter.json()):
+            raise AssertionError("Audit entity_type filter failed")
+
+        sso_start = client.get("/api/sso-providers/1/login")
+        sso_start.raise_for_status()
+        if sso_start.json()["status"] != "ready":
+            raise AssertionError("Enabled SSO provider should be ready")
+
+        sso_callback = client.post(
+            "/api/sso-providers/callback",
+            json={"provider_id": 1, "email": "admin@gmp.local", "external_subject": "admin-idp-subject"},
+        )
+        sso_callback.raise_for_status()
+        if sso_callback.json()["status"] != "authenticated" or not sso_callback.json()["access_token"]:
+            raise AssertionError("SSO callback did not issue a mapped user token")
+
         auditor_login = client.post(
             "/api/auth/login",
             json={"email": "auditor@gmp.local", "password": "Auditor@123"},

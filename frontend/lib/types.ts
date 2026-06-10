@@ -94,6 +94,19 @@ export type ReportSummary = {
   active_integrations: number;
 };
 
+export type ReportBreakdownItem = {
+  label: string;
+  value: number;
+};
+
+export type ReportBreakdown = {
+  policy_status: ReportBreakdownItem[];
+  action_status: ReportBreakdownItem[];
+  risk_severity: ReportBreakdownItem[];
+  compliance_status: ReportBreakdownItem[];
+  upcoming_meetings_by_month: ReportBreakdownItem[];
+};
+
 export type Tenant = {
   id: number;
   name: string;

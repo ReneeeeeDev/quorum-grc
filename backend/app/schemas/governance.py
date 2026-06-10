@@ -151,6 +151,19 @@ class ReportSummary(BaseModel):
     active_integrations: int = 0
 
 
+class ReportBreakdownItem(BaseModel):
+    label: str
+    value: int
+
+
+class ReportBreakdown(BaseModel):
+    policy_status: list[ReportBreakdownItem]
+    action_status: list[ReportBreakdownItem]
+    risk_severity: list[ReportBreakdownItem]
+    compliance_status: list[ReportBreakdownItem]
+    upcoming_meetings_by_month: list[ReportBreakdownItem]
+
+
 class TenantCreate(BaseModel):
     name: str
     domain: str | None = None
@@ -301,6 +314,21 @@ class SSOLoginResponse(BaseModel):
     provider_id: int
     status: str
     redirect_url: str | None = None
+    message: str
+
+
+class SSOCallbackRequest(BaseModel):
+    provider_id: int
+    email: str
+    external_subject: str | None = None
+
+
+class SSOCallbackResponse(BaseModel):
+    provider_id: int
+    status: str
+    email: str
+    access_token: str | None = None
+    token_type: str = "bearer"
     message: str
 
 

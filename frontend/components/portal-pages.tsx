@@ -17,6 +17,8 @@ import type {
   Meeting,
   NotificationRecord,
   Policy,
+  ReportBreakdown,
+  ReportBreakdownItem,
   ReportSummary,
   Risk,
   SSOProvider,
@@ -44,6 +46,14 @@ const emptyReportSummary: ReportSummary = {
   unread_notifications: 0,
   documents: 0,
   active_integrations: 0,
+};
+
+const emptyReportBreakdown: ReportBreakdown = {
+  policy_status: [],
+  action_status: [],
+  risk_severity: [],
+  compliance_status: [],
+  upcoming_meetings_by_month: [],
 };
 
 const policyStatusOptions = [
@@ -141,6 +151,25 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
       </div>
       <div className="p-4">{children}</div>
     </section>
+  );
+}
+
+function MiniBarChart({ rows }: { rows: ReportBreakdownItem[] }) {
+  const max = Math.max(1, ...rows.map((row) => row.value));
+  return (
+    <div className="space-y-3">
+      {rows.length ? rows.map((row) => (
+        <div key={row.label} className="grid grid-cols-[120px_1fr_36px] items-center gap-3 text-xs">
+          <span className="truncate font-semibold capitalize text-ink">{row.label.replaceAll("_", " ")}</span>
+          <div className="h-2 overflow-hidden rounded bg-slate-100">
+            <div className="h-full rounded bg-primary" style={{ width: `${Math.max(6, (row.value / max) * 100)}%` }} />
+          </div>
+          <span className="text-right font-semibold text-muted">{row.value}</span>
+        </div>
+      )) : (
+        <div className="rounded border border-dashed border-line px-3 py-6 text-center text-sm text-muted">No chart data available.</div>
+      )}
+    </div>
   );
 }
 
@@ -332,6 +361,7 @@ function usePortalData() {
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [actions, setActions] = useState<ActionItem[]>([]);
   const [reports, setReports] = useState<ReportSummary | null>(null);
+  const [reportBreakdown, setReportBreakdown] = useState<ReportBreakdown>(emptyReportBreakdown);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
@@ -355,6 +385,7 @@ function usePortalData() {
       apiRequest<Decision[]>("/api/decisions"),
       apiRequest<ActionItem[]>("/api/action-items"),
       apiRequest<ReportSummary>("/api/reports"),
+      apiRequest<ReportBreakdown>("/api/reports/breakdown"),
       apiRequest<AuditLog[]>("/api/audit-logs"),
       apiRequest<Tenant[]>("/api/tenants"),
       apiRequest<DocumentRecord[]>("/api/documents"),
@@ -389,16 +420,17 @@ function usePortalData() {
     setDecisions(valueAt<Decision[]>(4, []));
     setActions(valueAt<ActionItem[]>(5, []));
     setReports(valueAt<ReportSummary>(6, emptyReportSummary));
-    setAuditLogs(valueAt<AuditLog[]>(7, []));
-    setTenants(valueAt<Tenant[]>(8, []));
-    setDocuments(valueAt<DocumentRecord[]>(9, []));
-    setNotifications(valueAt<NotificationRecord[]>(10, []));
-    setCalendarEvents(valueAt<CalendarEvent[]>(11, []));
-    setWorkflowSteps(valueAt<WorkflowStep[]>(12, []));
-    setIntegrations(valueAt<IntegrationConnection[]>(13, []));
-    setSsoProviders(valueAt<SSOProvider[]>(14, []));
-    setComplianceObligations(valueAt<ComplianceObligation[]>(15, []));
-    setRisks(valueAt<Risk[]>(16, []));
+    setReportBreakdown(valueAt<ReportBreakdown>(7, emptyReportBreakdown));
+    setAuditLogs(valueAt<AuditLog[]>(8, []));
+    setTenants(valueAt<Tenant[]>(9, []));
+    setDocuments(valueAt<DocumentRecord[]>(10, []));
+    setNotifications(valueAt<NotificationRecord[]>(11, []));
+    setCalendarEvents(valueAt<CalendarEvent[]>(12, []));
+    setWorkflowSteps(valueAt<WorkflowStep[]>(13, []));
+    setIntegrations(valueAt<IntegrationConnection[]>(14, []));
+    setSsoProviders(valueAt<SSOProvider[]>(15, []));
+    setComplianceObligations(valueAt<ComplianceObligation[]>(16, []));
+    setRisks(valueAt<Risk[]>(17, []));
     setState("ready");
   }, []);
 
@@ -416,6 +448,7 @@ function usePortalData() {
     decisions,
     actions,
     reports,
+    reportBreakdown,
     auditLogs,
     tenants,
     documents,
@@ -511,6 +544,17 @@ export function DashboardScreen() {
             </div>
           );
         })}
+      </div>
+      <div className="mt-6 grid gap-6 xl:grid-cols-3">
+        <Panel title="Policy lifecycle">
+          <MiniBarChart rows={data.reportBreakdown.policy_status} />
+        </Panel>
+        <Panel title="Action status">
+          <MiniBarChart rows={data.reportBreakdown.action_status} />
+        </Panel>
+        <Panel title="Risk severity">
+          <MiniBarChart rows={data.reportBreakdown.risk_severity} />
+        </Panel>
       </div>
       <div className="mt-6 grid gap-6 xl:grid-cols-2">
         <Panel title="Overdue and open action items">
@@ -1230,6 +1274,25 @@ export function ReportsScreen() {
   return (
     <>
       <PageHeader title="Governance Reports" description="Executive reporting across policy lifecycle, governance operations, and control readiness." />
+      <div className="mb-4">
+        <button className="rounded border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-slate-50" onClick={() => void downloadApiFile("/api/reports/export", "governance-report.csv")}>
+          Export report CSV
+        </button>
+      </div>
+      <div className="mb-6 grid gap-6 xl:grid-cols-2">
+        <Panel title="Policy lifecycle">
+          <MiniBarChart rows={data.reportBreakdown.policy_status} />
+        </Panel>
+        <Panel title="Compliance status">
+          <MiniBarChart rows={data.reportBreakdown.compliance_status} />
+        </Panel>
+        <Panel title="Risk severity">
+          <MiniBarChart rows={data.reportBreakdown.risk_severity} />
+        </Panel>
+        <Panel title="Upcoming meetings by month">
+          <MiniBarChart rows={data.reportBreakdown.upcoming_meetings_by_month} />
+        </Panel>
+      </div>
       <Panel title="KPI summary">
         <DataTable
           rows={rows}
@@ -1341,6 +1404,7 @@ export function IntegrationsScreen() {
 
 export function SSOScreen() {
   const data = usePortalData();
+  const [ssoMessage, setSsoMessage] = useState<string | null>(null);
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
   return (
@@ -1356,8 +1420,43 @@ export function SSOScreen() {
               { header: "Type", cell: (row) => row.provider_type },
               { header: "Metadata", cell: (row) => row.metadata_url ?? "Not set" },
               { header: "Status", cell: (row) => <StatusChip status={row.status} /> },
+              {
+                header: "Test",
+                cell: (row) => (
+                  <button
+                    className="text-xs font-semibold text-primary"
+                    onClick={async () => {
+                      const response = await apiRequest<{ status: string; redirect_url: string | null; message: string }>(`/api/sso-providers/${row.id}/login`);
+                      setSsoMessage(`${row.name}: ${response.status} - ${response.message}`);
+                    }}
+                  >
+                    Start
+                  </button>
+                ),
+              },
+              {
+                header: "Callback",
+                cell: (row) => (
+                  <button
+                    className="text-xs font-semibold text-primary"
+                    onClick={async () => {
+                      const user = data.users[0];
+                      if (!user) return;
+                      const response = await apiRequest<{ status: string; message: string }>("/api/sso-providers/callback", {
+                        method: "POST",
+                        body: JSON.stringify({ provider_id: row.id, email: user.email, external_subject: `demo-${user.id}` }),
+                      });
+                      setSsoMessage(`${row.name}: ${response.status} - ${response.message}`);
+                      await data.reload();
+                    }}
+                  >
+                    Verify
+                  </button>
+                ),
+              },
             ]}
           />
+          {ssoMessage ? <div className="mt-3 rounded border border-line bg-slate-50 px-3 py-2 text-sm text-muted">{ssoMessage}</div> : null}
         </Panel>
         <CompactForm
           title="Create provider"
@@ -1384,19 +1483,49 @@ export function SSOScreen() {
 
 export function AuditLogsScreen() {
   const data = usePortalData();
+  const [filters, setFilters] = useState({ action: "", entity_type: "", actor_id: "", date_from: "", date_to: "" });
+  const [filteredLogs, setFilteredLogs] = useState<AuditLog[] | null>(null);
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
+  const auditRows = filteredLogs ?? data.auditLogs;
+  const auditQuery = new URLSearchParams();
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value) auditQuery.set(key, value);
+  });
+  const auditPath = `/api/audit-logs${auditQuery.toString() ? `?${auditQuery.toString()}` : ""}`;
+  const auditExportPath = `/api/audit-logs/export${auditQuery.toString() ? `?${auditQuery.toString()}` : ""}`;
 
   return (
     <>
       <PageHeader title="Audit Logs" description="Immutable audit trail for user actions, record changes, and governance activity." />
+      <div className="mb-4 grid gap-3 rounded border border-line bg-panel p-4 md:grid-cols-6">
+        <input value={filters.action} onChange={(event) => setFilters((current) => ({ ...current, action: event.target.value }))} placeholder="Action" className="rounded border border-line px-3 py-2 text-sm outline-none focus:border-primary" />
+        <input value={filters.entity_type} onChange={(event) => setFilters((current) => ({ ...current, entity_type: event.target.value }))} placeholder="Entity type" className="rounded border border-line px-3 py-2 text-sm outline-none focus:border-primary" />
+        <select value={filters.actor_id} onChange={(event) => setFilters((current) => ({ ...current, actor_id: event.target.value }))} className="rounded border border-line bg-white px-3 py-2 text-sm outline-none focus:border-primary">
+          <option value="">All actors</option>
+          {data.users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}
+        </select>
+        <input value={filters.date_from} onChange={(event) => setFilters((current) => ({ ...current, date_from: event.target.value }))} type="date" className="rounded border border-line px-3 py-2 text-sm outline-none focus:border-primary" />
+        <input value={filters.date_to} onChange={(event) => setFilters((current) => ({ ...current, date_to: event.target.value }))} type="date" className="rounded border border-line px-3 py-2 text-sm outline-none focus:border-primary" />
+        <div className="flex gap-2">
+          <button
+            className="rounded bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-teal-800"
+            onClick={async () => setFilteredLogs(await apiRequest<AuditLog[]>(auditPath))}
+          >
+            Apply
+          </button>
+          <button className="rounded border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-slate-50" onClick={() => { setFilters({ action: "", entity_type: "", actor_id: "", date_from: "", date_to: "" }); setFilteredLogs(null); }}>
+            Reset
+          </button>
+        </div>
+      </div>
       <div className="mb-4">
-        <button className="rounded border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-slate-50" onClick={() => void downloadApiFile("/api/audit-logs/export", "audit-logs.csv")}>
+        <button className="rounded border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-slate-50" onClick={() => void downloadApiFile(auditExportPath, "audit-logs.csv")}>
           Export CSV
         </button>
       </div>
       <Panel title="Recent audit events">
         <DataTable
-          rows={data.auditLogs}
+          rows={auditRows}
           empty="No audit logs found."
           columns={[
             { header: "Action", cell: (row) => row.action },
