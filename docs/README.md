@@ -1,4 +1,11 @@
 # Documentation
 
-Project documentation for architecture, API contracts, product notes, and verification lives here.
-
+- [Product brief](product-brief.md)
+- [Architecture](architecture.md)
+- [API summary](api.md)
+- [Verification](verification.md)
+- [Deployment](deployment.md)
+- [Vercel + Render + Supabase deployment](deploy-vercel-render-supabase.md)
+- [Production smoke check](production-smoke-check.md)
+- [Production hardening](production-hardening.md)
+- [Resume and interview notes](resume-and-interview.md)

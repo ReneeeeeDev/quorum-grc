@@ -44,3 +44,13 @@ docker-compose up --build
 ```
 
 Then open `http://localhost:3000/login`.
+
+## Production Smoke
+
+After Vercel, Render, and Supabase are configured:
+
+```bash
+node scripts/production-smoke.mjs
+```
+
+See [production-smoke-check.md](production-smoke-check.md) for required environment variables and the complete checklist.

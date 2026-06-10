@@ -5,6 +5,7 @@ from time import monotonic
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
 
 from app.api.routes.auth import router as auth_router
 from app.api.routes.governance import router as governance_router
@@ -33,6 +34,15 @@ rate_limit_window_seconds = 60
 rate_limit_buckets: dict[str, tuple[float, int]] = {}
 
 
+def security_headers() -> dict[str, str]:
+    return {
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+    }
+
+
 @app.middleware("http")
 async def security_and_rate_limit_middleware(request: Request, call_next):
     client_host = request.client.host if request.client else "unknown"
@@ -47,14 +57,11 @@ async def security_and_rate_limit_middleware(request: Request, call_next):
         return JSONResponse(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             content={"detail": "Too many requests"},
-            headers={"Retry-After": str(rate_limit_window_seconds)},
+            headers={"Retry-After": str(rate_limit_window_seconds), **security_headers()},
         )
 
     response = await call_next(request)
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
-    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    response.headers.update(security_headers())
     return response
 
 allowed_origins = sorted({settings.frontend_origin, "http://localhost:3000", "http://127.0.0.1:3000"})
@@ -74,3 +81,13 @@ app.include_router(governance_router)
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "service": settings.app_name}
+
+
+@app.get("/health/ready")
+def readiness() -> dict[str, str]:
+    db = SessionLocal()
+    try:
+        db.execute(text("select 1"))
+    finally:
+        db.close()
+    return {"status": "ready", "database": "ok"}

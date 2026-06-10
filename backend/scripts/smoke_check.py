@@ -20,6 +20,11 @@ def main() -> None:
         if health_response.headers.get("X-Content-Type-Options") != "nosniff":
             raise AssertionError("Security headers are missing")
 
+        readiness_response = client.get("/health/ready")
+        readiness_response.raise_for_status()
+        if readiness_response.json().get("database") != "ok":
+            raise AssertionError("Readiness check did not confirm database connectivity")
+
         login_response = client.post(
             "/api/auth/login",
             json={"email": "admin@gmp.local", "password": "Admin@123"},

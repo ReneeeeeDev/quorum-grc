@@ -166,3 +166,11 @@ Then sign in with the seeded demo admin only if `DEMO_SEED_ENABLED=true`:
 ```text
 admin@gmp.local / Admin@123
 ```
+
+For the full deployed smoke flow, set `PRODUCTION_FRONTEND_URL`, `PRODUCTION_BACKEND_URL`, `SMOKE_EMAIL`, and `SMOKE_PASSWORD`, then run:
+
+```bash
+node scripts/production-smoke.mjs
+```
+
+See [production-smoke-check.md](production-smoke-check.md) and [production-hardening.md](production-hardening.md).
