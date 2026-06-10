@@ -5,6 +5,7 @@ import { AlertTriangle, Bell, CheckCircle2, Clock, FileCheck2, ListChecks, Paper
 
 import { StatusChip } from "@/components/status-chip";
 import { apiRequest, apiUpload, getToken } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import type {
   ActionItem,
   AuditLog,
@@ -20,6 +21,7 @@ import type {
   ReportBreakdown,
   ReportBreakdownItem,
   ReportSummary,
+  Role,
   Risk,
   SSOProvider,
   Tenant,
@@ -151,6 +153,35 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
       </div>
       <div className="p-4">{children}</div>
     </section>
+  );
+}
+
+function roleIn(role: Role | undefined, roles: Role[]) {
+  return Boolean(role && roles.includes(role));
+}
+
+function useRolePermissions() {
+  const { user } = useAuth();
+  const role = user?.role;
+  const canManageGovernance = roleIn(role, ["Admin", "Governance Officer", "Manager"]);
+  const canAudit = roleIn(role, ["Admin", "Governance Officer", "Auditor"]);
+
+  return {
+    role,
+    canManageGovernance,
+    canManageAdmin: role === "Admin",
+    canAudit,
+    canDispatchNotifications: canManageGovernance,
+    canExportReports: Boolean(role),
+    canUploadDocuments: canManageGovernance,
+  };
+}
+
+function ReadOnlyPanel({ message = "Your role can view these records, but cannot create, update, or delete them." }: { message?: string }) {
+  return (
+    <Panel title="Role access">
+      <div className="rounded border border-dashed border-line bg-slate-50 px-4 py-5 text-sm text-muted">{message}</div>
+    </Panel>
   );
 }
 
@@ -586,6 +617,7 @@ export function DashboardScreen() {
 
 export function PoliciesScreen() {
   const data = usePortalData();
+  const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
   return (
@@ -601,9 +633,9 @@ export function PoliciesScreen() {
               { header: "Version", cell: (row) => row.version },
               { header: "Status", cell: (row) => <StatusChip status={row.status} /> },
               { header: "Effective", cell: (row) => row.effective_date ?? "Not set" },
-              {
+              ...(permissions.canManageGovernance ? [{
                 header: "Actions",
-                cell: (row) => (
+                cell: (row: Policy) => (
                   <button
                     className="text-xs font-semibold text-danger"
                     onClick={async () => {
@@ -614,26 +646,28 @@ export function PoliciesScreen() {
                     Delete
                   </button>
                 ),
-              },
+              }] : []),
             ]}
           />
         </Panel>
-        <CompactForm
-          title="Create policy"
-          initialValues={{ title: "", version: "1.0", status: "draft", owner_id: String(data.users[0]?.id ?? ""), effective_date: today(), summary: "" }}
-          fields={[
-            { name: "title", label: "Title", required: true },
-            { name: "version", label: "Version", required: true },
-            { name: "status", label: "Status", type: "select", options: policyStatusOptions, required: true },
-            { name: "owner_id", label: "Owner", type: "select", options: userOptions(data.users), required: true },
-            { name: "effective_date", label: "Effective date", type: "date" },
-            { name: "summary", label: "Summary", type: "textarea" },
-          ]}
-          onSubmit={async (values) => {
-            await apiRequest<Policy>("/api/policies", { method: "POST", body: JSON.stringify({ ...values, owner_id: Number(values.owner_id) }) });
-            await data.reload();
-          }}
-        />
+        {permissions.canManageGovernance ? (
+          <CompactForm
+            title="Create policy"
+            initialValues={{ title: "", version: "1.0", status: "draft", owner_id: String(data.users[0]?.id ?? ""), effective_date: today(), summary: "" }}
+            fields={[
+              { name: "title", label: "Title", required: true },
+              { name: "version", label: "Version", required: true },
+              { name: "status", label: "Status", type: "select", options: policyStatusOptions, required: true },
+              { name: "owner_id", label: "Owner", type: "select", options: userOptions(data.users), required: true },
+              { name: "effective_date", label: "Effective date", type: "date" },
+              { name: "summary", label: "Summary", type: "textarea" },
+            ]}
+            onSubmit={async (values) => {
+              await apiRequest<Policy>("/api/policies", { method: "POST", body: JSON.stringify({ ...values, owner_id: Number(values.owner_id) }) });
+              await data.reload();
+            }}
+          />
+        ) : <ReadOnlyPanel />}
       </div>
     </>
   );
@@ -641,6 +675,7 @@ export function PoliciesScreen() {
 
 export function DepartmentsScreen() {
   const data = usePortalData();
+  const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
   return (
@@ -658,21 +693,23 @@ export function DepartmentsScreen() {
             ]}
           />
         </Panel>
-        <CompactForm
-          title="Create department or committee"
-          initialValues={{ name: "", head_id: "" }}
-          fields={[
-            { name: "name", label: "Name", required: true },
-            { name: "head_id", label: "Head", type: "select", options: userOptions(data.users) },
-          ]}
-          onSubmit={async (values) => {
-            await apiRequest<Department>("/api/departments", {
-              method: "POST",
-              body: JSON.stringify({ name: values.name, head_id: values.head_id ? Number(values.head_id) : null }),
-            });
-            await data.reload();
-          }}
-        />
+        {permissions.canManageAdmin ? (
+          <CompactForm
+            title="Create department or committee"
+            initialValues={{ name: "", head_id: "" }}
+            fields={[
+              { name: "name", label: "Name", required: true },
+              { name: "head_id", label: "Head", type: "select", options: userOptions(data.users) },
+            ]}
+            onSubmit={async (values) => {
+              await apiRequest<Department>("/api/departments", {
+                method: "POST",
+                body: JSON.stringify({ name: values.name, head_id: values.head_id ? Number(values.head_id) : null }),
+              });
+              await data.reload();
+            }}
+          />
+        ) : <ReadOnlyPanel />}
       </div>
     </>
   );
@@ -680,6 +717,7 @@ export function DepartmentsScreen() {
 
 export function MeetingsScreen() {
   const data = usePortalData();
+  const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
   return (
@@ -697,24 +735,26 @@ export function MeetingsScreen() {
             ]}
           />
         </Panel>
-        <CompactForm
-          title="Schedule meeting"
-          initialValues={{ title: "", meeting_date: nextMonth(), committee_id: "", agenda: "", minutes: "" }}
-          fields={[
-            { name: "title", label: "Title", required: true },
-            { name: "meeting_date", label: "Date", type: "date", required: true },
-            { name: "committee_id", label: "Committee", type: "select", options: departmentOptions(data.departments) },
-            { name: "agenda", label: "Agenda", type: "textarea" },
-            { name: "minutes", label: "Minutes", type: "textarea" },
-          ]}
-          onSubmit={async (values) => {
-            await apiRequest<Meeting>("/api/meetings", {
-              method: "POST",
-              body: JSON.stringify({ ...values, committee_id: values.committee_id ? Number(values.committee_id) : null }),
-            });
-            await data.reload();
-          }}
-        />
+        {permissions.canManageGovernance ? (
+          <CompactForm
+            title="Schedule meeting"
+            initialValues={{ title: "", meeting_date: nextMonth(), committee_id: "", agenda: "", minutes: "" }}
+            fields={[
+              { name: "title", label: "Title", required: true },
+              { name: "meeting_date", label: "Date", type: "date", required: true },
+              { name: "committee_id", label: "Committee", type: "select", options: departmentOptions(data.departments) },
+              { name: "agenda", label: "Agenda", type: "textarea" },
+              { name: "minutes", label: "Minutes", type: "textarea" },
+            ]}
+            onSubmit={async (values) => {
+              await apiRequest<Meeting>("/api/meetings", {
+                method: "POST",
+                body: JSON.stringify({ ...values, committee_id: values.committee_id ? Number(values.committee_id) : null }),
+              });
+              await data.reload();
+            }}
+          />
+        ) : <ReadOnlyPanel />}
       </div>
     </>
   );
@@ -722,6 +762,7 @@ export function MeetingsScreen() {
 
 export function DecisionsScreen() {
   const data = usePortalData();
+  const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
   return (
@@ -740,28 +781,30 @@ export function DecisionsScreen() {
             ]}
           />
         </Panel>
-        <CompactForm
-          title="Record decision"
-          initialValues={{ meeting_id: "", description: "", decision_date: today(), owner_id: "" }}
-          fields={[
-            { name: "meeting_id", label: "Meeting", type: "select", options: meetingOptions(data.meetings) },
-            { name: "decision_date", label: "Decision date", type: "date", required: true },
-            { name: "owner_id", label: "Owner", type: "select", options: userOptions(data.users) },
-            { name: "description", label: "Description", type: "textarea", required: true },
-          ]}
-          onSubmit={async (values) => {
-            await apiRequest<Decision>("/api/decisions", {
-              method: "POST",
-              body: JSON.stringify({
-                meeting_id: values.meeting_id ? Number(values.meeting_id) : null,
-                description: values.description,
-                decision_date: values.decision_date,
-                owner_id: values.owner_id ? Number(values.owner_id) : null,
-              }),
-            });
-            await data.reload();
-          }}
-        />
+        {permissions.canManageGovernance ? (
+          <CompactForm
+            title="Record decision"
+            initialValues={{ meeting_id: "", description: "", decision_date: today(), owner_id: "" }}
+            fields={[
+              { name: "meeting_id", label: "Meeting", type: "select", options: meetingOptions(data.meetings) },
+              { name: "decision_date", label: "Decision date", type: "date", required: true },
+              { name: "owner_id", label: "Owner", type: "select", options: userOptions(data.users) },
+              { name: "description", label: "Description", type: "textarea", required: true },
+            ]}
+            onSubmit={async (values) => {
+              await apiRequest<Decision>("/api/decisions", {
+                method: "POST",
+                body: JSON.stringify({
+                  meeting_id: values.meeting_id ? Number(values.meeting_id) : null,
+                  description: values.description,
+                  decision_date: values.decision_date,
+                  owner_id: values.owner_id ? Number(values.owner_id) : null,
+                }),
+              });
+              await data.reload();
+            }}
+          />
+        ) : <ReadOnlyPanel />}
       </div>
     </>
   );
@@ -769,6 +812,7 @@ export function DecisionsScreen() {
 
 export function ActionsScreen() {
   const data = usePortalData();
+  const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
   return (
@@ -784,9 +828,9 @@ export function ActionsScreen() {
               { header: "Assignee", cell: (row) => data.users.find((user) => user.id === row.assigned_to)?.name ?? "Unknown" },
               { header: "Due", cell: (row) => row.due_date },
               { header: "Status", cell: (row) => <StatusChip status={row.status} /> },
-              {
+              ...(permissions.canManageGovernance ? [{
                 header: "Update",
-                cell: (row) => (
+                cell: (row: ActionItem) => (
                   <select
                     value={row.status}
                     className="rounded border border-line bg-white px-2 py-1 text-xs"
@@ -805,34 +849,36 @@ export function ActionsScreen() {
                     ))}
                   </select>
                 ),
-              },
+              }] : []),
             ]}
           />
         </Panel>
-        <CompactForm
-          title="Create action item"
-          initialValues={{ decision_id: "", title: "", assigned_to: String(data.users[0]?.id ?? ""), due_date: nextMonth(), status: "open" }}
-          fields={[
-            { name: "decision_id", label: "Decision", type: "select", options: decisionOptions(data.decisions) },
-            { name: "title", label: "Title", required: true },
-            { name: "assigned_to", label: "Assignee", type: "select", options: userOptions(data.users), required: true },
-            { name: "due_date", label: "Due date", type: "date", required: true },
-            { name: "status", label: "Status", type: "select", options: actionStatusOptions, required: true },
-          ]}
-          onSubmit={async (values) => {
-            await apiRequest<ActionItem>("/api/action-items", {
-              method: "POST",
-              body: JSON.stringify({
-                decision_id: values.decision_id ? Number(values.decision_id) : null,
-                title: values.title,
-                assigned_to: Number(values.assigned_to),
-                due_date: values.due_date,
-                status: values.status,
-              }),
-            });
-            await data.reload();
-          }}
-        />
+        {permissions.canManageGovernance ? (
+          <CompactForm
+            title="Create action item"
+            initialValues={{ decision_id: "", title: "", assigned_to: String(data.users[0]?.id ?? ""), due_date: nextMonth(), status: "open" }}
+            fields={[
+              { name: "decision_id", label: "Decision", type: "select", options: decisionOptions(data.decisions) },
+              { name: "title", label: "Title", required: true },
+              { name: "assigned_to", label: "Assignee", type: "select", options: userOptions(data.users), required: true },
+              { name: "due_date", label: "Due date", type: "date", required: true },
+              { name: "status", label: "Status", type: "select", options: actionStatusOptions, required: true },
+            ]}
+            onSubmit={async (values) => {
+              await apiRequest<ActionItem>("/api/action-items", {
+                method: "POST",
+                body: JSON.stringify({
+                  decision_id: values.decision_id ? Number(values.decision_id) : null,
+                  title: values.title,
+                  assigned_to: Number(values.assigned_to),
+                  due_date: values.due_date,
+                  status: values.status,
+                }),
+              });
+              await data.reload();
+            }}
+          />
+        ) : <ReadOnlyPanel message="Your role can view assigned action items, but cannot create or update action status." />}
       </div>
     </>
   );
@@ -914,6 +960,7 @@ function DocumentUploadForm({ tenants, reload }: { tenants: Tenant[]; reload: ()
 
 export function DocumentsScreen() {
   const data = usePortalData();
+  const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
   return (
@@ -940,7 +987,7 @@ export function DocumentsScreen() {
             ]}
           />
         </Panel>
-        <DocumentUploadForm tenants={data.tenants} reload={data.reload} />
+        {permissions.canUploadDocuments ? <DocumentUploadForm tenants={data.tenants} reload={data.reload} /> : <ReadOnlyPanel message="Your role can view and download visible documents, but cannot upload new evidence." />}
       </div>
     </>
   );
@@ -948,6 +995,7 @@ export function DocumentsScreen() {
 
 export function NotificationsScreen() {
   const data = usePortalData();
+  const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
   return (
@@ -975,38 +1023,42 @@ export function NotificationsScreen() {
                     >
                       Mark read
                     </button>
-                    <button
-                      className="text-xs font-semibold text-accent"
-                      onClick={async () => {
-                        await apiRequest(`/api/notifications/${row.id}/dispatch`, { method: "POST" });
-                        await data.reload();
-                      }}
-                    >
-                      Dispatch
-                    </button>
+                    {permissions.canDispatchNotifications ? (
+                      <button
+                        className="text-xs font-semibold text-accent"
+                        onClick={async () => {
+                          await apiRequest(`/api/notifications/${row.id}/dispatch`, { method: "POST" });
+                          await data.reload();
+                        }}
+                      >
+                        Dispatch
+                      </button>
+                    ) : null}
                   </div>
                 ),
               },
             ]}
           />
         </Panel>
-        <CompactForm
-          title="Create alert"
-          initialValues={{ title: "", message: "", user_id: "", due_date: nextMonth() }}
-          fields={[
-            { name: "title", label: "Title", required: true },
-            { name: "user_id", label: "User", type: "select", options: userOptions(data.users) },
-            { name: "due_date", label: "Due date", type: "date" },
-            { name: "message", label: "Message", type: "textarea", required: true },
-          ]}
-          onSubmit={async (values) => {
-            await apiRequest<NotificationRecord>("/api/notifications", {
-              method: "POST",
-              body: JSON.stringify({ title: values.title, message: values.message, user_id: values.user_id ? Number(values.user_id) : null, due_date: values.due_date || null }),
-            });
-            await data.reload();
-          }}
-        />
+        {permissions.canDispatchNotifications ? (
+          <CompactForm
+            title="Create alert"
+            initialValues={{ title: "", message: "", user_id: "", due_date: nextMonth() }}
+            fields={[
+              { name: "title", label: "Title", required: true },
+              { name: "user_id", label: "User", type: "select", options: userOptions(data.users) },
+              { name: "due_date", label: "Due date", type: "date" },
+              { name: "message", label: "Message", type: "textarea", required: true },
+            ]}
+            onSubmit={async (values) => {
+              await apiRequest<NotificationRecord>("/api/notifications", {
+                method: "POST",
+                body: JSON.stringify({ title: values.title, message: values.message, user_id: values.user_id ? Number(values.user_id) : null, due_date: values.due_date || null }),
+              });
+              await data.reload();
+            }}
+          />
+        ) : <ReadOnlyPanel message="Your role can read notifications, but cannot create or dispatch alerts." />}
       </div>
     </>
   );
@@ -1014,6 +1066,7 @@ export function NotificationsScreen() {
 
 export function CalendarScreen() {
   const data = usePortalData();
+  const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
   return (
@@ -1037,24 +1090,26 @@ export function CalendarScreen() {
             ]}
           />
         </Panel>
-        <CompactForm
-          title="Create event"
-          initialValues={{ title: "", event_type: "meeting", event_date: nextMonth(), owner_id: "", description: "" }}
-          fields={[
-            { name: "title", label: "Title", required: true },
-            { name: "event_type", label: "Type", type: "select", options: eventTypeOptions, required: true },
-            { name: "event_date", label: "Date", type: "date", required: true },
-            { name: "owner_id", label: "Owner", type: "select", options: userOptions(data.users) },
-            { name: "description", label: "Description", type: "textarea" },
-          ]}
-          onSubmit={async (values) => {
-            await apiRequest<CalendarEvent>("/api/calendar-events", {
-              method: "POST",
-              body: JSON.stringify({ ...values, owner_id: values.owner_id ? Number(values.owner_id) : null }),
-            });
-            await data.reload();
-          }}
-        />
+        {permissions.canManageGovernance ? (
+          <CompactForm
+            title="Create event"
+            initialValues={{ title: "", event_type: "meeting", event_date: nextMonth(), owner_id: "", description: "" }}
+            fields={[
+              { name: "title", label: "Title", required: true },
+              { name: "event_type", label: "Type", type: "select", options: eventTypeOptions, required: true },
+              { name: "event_date", label: "Date", type: "date", required: true },
+              { name: "owner_id", label: "Owner", type: "select", options: userOptions(data.users) },
+              { name: "description", label: "Description", type: "textarea" },
+            ]}
+            onSubmit={async (values) => {
+              await apiRequest<CalendarEvent>("/api/calendar-events", {
+                method: "POST",
+                body: JSON.stringify({ ...values, owner_id: values.owner_id ? Number(values.owner_id) : null }),
+              });
+              await data.reload();
+            }}
+          />
+        ) : <ReadOnlyPanel message="Your role can view and export the governance calendar, but cannot create events." />}
       </div>
     </>
   );
@@ -1062,6 +1117,7 @@ export function CalendarScreen() {
 
 export function WorkflowsScreen() {
   const data = usePortalData();
+  const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
   return (
@@ -1077,9 +1133,9 @@ export function WorkflowsScreen() {
               { header: "Step", cell: (row) => `${row.sequence}. ${row.step_name}` },
               { header: "Approver", cell: (row) => data.users.find((user) => user.id === row.approver_id)?.name ?? "Unknown" },
               { header: "Status", cell: (row) => <StatusChip status={row.status} /> },
-              {
+              ...(permissions.canManageGovernance ? [{
                 header: "Update",
-                cell: (row) => (
+                cell: (row: WorkflowStep) => (
                   <select
                     value={row.status}
                     className="rounded border border-line bg-white px-2 py-1 text-xs"
@@ -1093,29 +1149,31 @@ export function WorkflowsScreen() {
                     ))}
                   </select>
                 ),
-              },
+              }] : []),
             ]}
           />
         </Panel>
-        <CompactForm
-          title="Add approval step"
-          initialValues={{ policy_id: String(data.policies[0]?.id ?? ""), step_name: "Review", approver_id: String(data.users[0]?.id ?? ""), sequence: "1", status: "pending", comments: "" }}
-          fields={[
-            { name: "policy_id", label: "Policy", type: "select", options: policyOptions(data.policies), required: true },
-            { name: "step_name", label: "Step name", required: true },
-            { name: "approver_id", label: "Approver", type: "select", options: userOptions(data.users), required: true },
-            { name: "sequence", label: "Sequence", required: true },
-            { name: "status", label: "Status", type: "select", options: workflowStatusOptions, required: true },
-            { name: "comments", label: "Comments", type: "textarea" },
-          ]}
-          onSubmit={async (values) => {
-            await apiRequest<WorkflowStep>("/api/workflow-steps", {
-              method: "POST",
-              body: JSON.stringify({ ...values, policy_id: Number(values.policy_id), approver_id: Number(values.approver_id), sequence: Number(values.sequence) }),
-            });
-            await data.reload();
-          }}
-        />
+        {permissions.canManageGovernance ? (
+          <CompactForm
+            title="Add approval step"
+            initialValues={{ policy_id: String(data.policies[0]?.id ?? ""), step_name: "Review", approver_id: String(data.users[0]?.id ?? ""), sequence: "1", status: "pending", comments: "" }}
+            fields={[
+              { name: "policy_id", label: "Policy", type: "select", options: policyOptions(data.policies), required: true },
+              { name: "step_name", label: "Step name", required: true },
+              { name: "approver_id", label: "Approver", type: "select", options: userOptions(data.users), required: true },
+              { name: "sequence", label: "Sequence", required: true },
+              { name: "status", label: "Status", type: "select", options: workflowStatusOptions, required: true },
+              { name: "comments", label: "Comments", type: "textarea" },
+            ]}
+            onSubmit={async (values) => {
+              await apiRequest<WorkflowStep>("/api/workflow-steps", {
+                method: "POST",
+                body: JSON.stringify({ ...values, policy_id: Number(values.policy_id), approver_id: Number(values.approver_id), sequence: Number(values.sequence) }),
+              });
+              await data.reload();
+            }}
+          />
+        ) : <ReadOnlyPanel message="Your role can view workflow status, but cannot add or update approval steps." />}
       </div>
     </>
   );
@@ -1123,6 +1181,7 @@ export function WorkflowsScreen() {
 
 export function ComplianceScreen() {
   const data = usePortalData();
+  const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
   return (
@@ -1139,9 +1198,9 @@ export function ComplianceScreen() {
               { header: "Owner", cell: (row) => data.users.find((user) => user.id === row.owner_id)?.name ?? "Unassigned" },
               { header: "Due", cell: (row) => row.due_date ?? "None" },
               { header: "Status", cell: (row) => <StatusChip status={row.status} /> },
-              {
+              ...(permissions.canManageGovernance ? [{
                 header: "Update",
-                cell: (row) => (
+                cell: (row: ComplianceObligation) => (
                   <select
                     value={row.status}
                     className="rounded border border-line bg-white px-2 py-1 text-xs"
@@ -1155,35 +1214,37 @@ export function ComplianceScreen() {
                     ))}
                   </select>
                 ),
-              },
+              }] : []),
             ]}
           />
         </Panel>
-        <CompactForm
-          title="Create obligation"
-          initialValues={{ tenant_id: String(data.tenants[0]?.id ?? ""), title: "", source: "internal", owner_id: "", due_date: nextMonth(), status: "not_started", description: "" }}
-          fields={[
-            { name: "tenant_id", label: "Tenant", type: "select", options: tenantOptions(data.tenants) },
-            { name: "title", label: "Title", required: true },
-            { name: "source", label: "Source", required: true },
-            { name: "owner_id", label: "Owner", type: "select", options: userOptions(data.users) },
-            { name: "due_date", label: "Due date", type: "date" },
-            { name: "status", label: "Status", type: "select", options: complianceStatusOptions, required: true },
-            { name: "description", label: "Description", type: "textarea" },
-          ]}
-          onSubmit={async (values) => {
-            await apiRequest<ComplianceObligation>("/api/compliance-obligations", {
-              method: "POST",
-              body: JSON.stringify({
-                ...values,
-                tenant_id: values.tenant_id ? Number(values.tenant_id) : null,
-                owner_id: values.owner_id ? Number(values.owner_id) : null,
-                due_date: values.due_date || null,
-              }),
-            });
-            await data.reload();
-          }}
-        />
+        {permissions.canManageGovernance ? (
+          <CompactForm
+            title="Create obligation"
+            initialValues={{ tenant_id: String(data.tenants[0]?.id ?? ""), title: "", source: "internal", owner_id: "", due_date: nextMonth(), status: "not_started", description: "" }}
+            fields={[
+              { name: "tenant_id", label: "Tenant", type: "select", options: tenantOptions(data.tenants) },
+              { name: "title", label: "Title", required: true },
+              { name: "source", label: "Source", required: true },
+              { name: "owner_id", label: "Owner", type: "select", options: userOptions(data.users) },
+              { name: "due_date", label: "Due date", type: "date" },
+              { name: "status", label: "Status", type: "select", options: complianceStatusOptions, required: true },
+              { name: "description", label: "Description", type: "textarea" },
+            ]}
+            onSubmit={async (values) => {
+              await apiRequest<ComplianceObligation>("/api/compliance-obligations", {
+                method: "POST",
+                body: JSON.stringify({
+                  ...values,
+                  tenant_id: values.tenant_id ? Number(values.tenant_id) : null,
+                  owner_id: values.owner_id ? Number(values.owner_id) : null,
+                  due_date: values.due_date || null,
+                }),
+              });
+              await data.reload();
+            }}
+          />
+        ) : <ReadOnlyPanel message="Your role can view compliance obligations, but cannot create or update them." />}
       </div>
     </>
   );
@@ -1191,6 +1252,7 @@ export function ComplianceScreen() {
 
 export function RisksScreen() {
   const data = usePortalData();
+  const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
   return (
@@ -1207,9 +1269,9 @@ export function RisksScreen() {
               { header: "Severity", cell: (row) => <StatusChip status={row.severity} /> },
               { header: "Status", cell: (row) => <StatusChip status={row.status} /> },
               { header: "Owner", cell: (row) => data.users.find((user) => user.id === row.owner_id)?.name ?? "Unassigned" },
-              {
+              ...(permissions.canManageGovernance ? [{
                 header: "Update",
-                cell: (row) => (
+                cell: (row: Risk) => (
                   <select
                     value={row.status}
                     className="rounded border border-line bg-white px-2 py-1 text-xs"
@@ -1223,34 +1285,36 @@ export function RisksScreen() {
                     ))}
                   </select>
                 ),
-              },
+              }] : []),
             ]}
           />
         </Panel>
-        <CompactForm
-          title="Create risk"
-          initialValues={{ tenant_id: String(data.tenants[0]?.id ?? ""), title: "", category: "governance", severity: "medium", status: "open", owner_id: "", mitigation_plan: "" }}
-          fields={[
-            { name: "tenant_id", label: "Tenant", type: "select", options: tenantOptions(data.tenants) },
-            { name: "title", label: "Title", required: true },
-            { name: "category", label: "Category", required: true },
-            { name: "severity", label: "Severity", type: "select", options: riskSeverityOptions, required: true },
-            { name: "status", label: "Status", type: "select", options: riskStatusOptions, required: true },
-            { name: "owner_id", label: "Owner", type: "select", options: userOptions(data.users) },
-            { name: "mitigation_plan", label: "Mitigation plan", type: "textarea" },
-          ]}
-          onSubmit={async (values) => {
-            await apiRequest<Risk>("/api/risks", {
-              method: "POST",
-              body: JSON.stringify({
-                ...values,
-                tenant_id: values.tenant_id ? Number(values.tenant_id) : null,
-                owner_id: values.owner_id ? Number(values.owner_id) : null,
-              }),
-            });
-            await data.reload();
-          }}
-        />
+        {permissions.canManageGovernance ? (
+          <CompactForm
+            title="Create risk"
+            initialValues={{ tenant_id: String(data.tenants[0]?.id ?? ""), title: "", category: "governance", severity: "medium", status: "open", owner_id: "", mitigation_plan: "" }}
+            fields={[
+              { name: "tenant_id", label: "Tenant", type: "select", options: tenantOptions(data.tenants) },
+              { name: "title", label: "Title", required: true },
+              { name: "category", label: "Category", required: true },
+              { name: "severity", label: "Severity", type: "select", options: riskSeverityOptions, required: true },
+              { name: "status", label: "Status", type: "select", options: riskStatusOptions, required: true },
+              { name: "owner_id", label: "Owner", type: "select", options: userOptions(data.users) },
+              { name: "mitigation_plan", label: "Mitigation plan", type: "textarea" },
+            ]}
+            onSubmit={async (values) => {
+              await apiRequest<Risk>("/api/risks", {
+                method: "POST",
+                body: JSON.stringify({
+                  ...values,
+                  tenant_id: values.tenant_id ? Number(values.tenant_id) : null,
+                  owner_id: values.owner_id ? Number(values.owner_id) : null,
+                }),
+              });
+              await data.reload();
+            }}
+          />
+        ) : <ReadOnlyPanel message="Your role can view risks, but cannot create or update risk records." />}
       </div>
     </>
   );
@@ -1258,6 +1322,7 @@ export function RisksScreen() {
 
 export function ReportsScreen() {
   const data = usePortalData();
+  const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
   const rows = [
@@ -1274,11 +1339,13 @@ export function ReportsScreen() {
   return (
     <>
       <PageHeader title="Governance Reports" description="Executive reporting across policy lifecycle, governance operations, and control readiness." />
-      <div className="mb-4">
-        <button className="rounded border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-slate-50" onClick={() => void downloadApiFile("/api/reports/export", "governance-report.csv")}>
-          Export report CSV
-        </button>
-      </div>
+      {permissions.canExportReports ? (
+        <div className="mb-4">
+          <button className="rounded border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-slate-50" onClick={() => void downloadApiFile("/api/reports/export", "governance-report.csv")}>
+            Export report CSV
+          </button>
+        </div>
+      ) : null}
       <div className="mb-6 grid gap-6 xl:grid-cols-2">
         <Panel title="Policy lifecycle">
           <MiniBarChart rows={data.reportBreakdown.policy_status} />
@@ -1310,6 +1377,7 @@ export function ReportsScreen() {
 
 export function TenantsScreen() {
   const data = usePortalData();
+  const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
   return (
@@ -1328,18 +1396,20 @@ export function TenantsScreen() {
             ]}
           />
         </Panel>
-        <CompactForm
-          title="Create tenant"
-          initialValues={{ name: "", domain: "" }}
-          fields={[
-            { name: "name", label: "Name", required: true },
-            { name: "domain", label: "Domain" },
-          ]}
-          onSubmit={async (values) => {
-            await apiRequest<Tenant>("/api/tenants", { method: "POST", body: JSON.stringify({ name: values.name, domain: values.domain || null, is_active: true }) });
-            await data.reload();
-          }}
-        />
+        {permissions.canManageAdmin ? (
+          <CompactForm
+            title="Create tenant"
+            initialValues={{ name: "", domain: "" }}
+            fields={[
+              { name: "name", label: "Name", required: true },
+              { name: "domain", label: "Domain" },
+            ]}
+            onSubmit={async (values) => {
+              await apiRequest<Tenant>("/api/tenants", { method: "POST", body: JSON.stringify({ name: values.name, domain: values.domain || null, is_active: true }) });
+              await data.reload();
+            }}
+          />
+        ) : <ReadOnlyPanel message="Only Admin users can create tenant records." />}
       </div>
     </>
   );
@@ -1347,6 +1417,7 @@ export function TenantsScreen() {
 
 export function IntegrationsScreen() {
   const data = usePortalData();
+  const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
   return (
@@ -1362,9 +1433,9 @@ export function IntegrationsScreen() {
               { header: "Type", cell: (row) => row.integration_type },
               { header: "Endpoint", cell: (row) => row.endpoint_url ?? "Manual" },
               { header: "Status", cell: (row) => <StatusChip status={row.status} /> },
-              {
+              ...(permissions.canManageAdmin ? [{
                 header: "Sync",
-                cell: (row) => (
+                cell: (row: IntegrationConnection) => (
                   <button
                     className="text-xs font-semibold text-primary"
                     onClick={async () => {
@@ -1375,28 +1446,30 @@ export function IntegrationsScreen() {
                     Run
                   </button>
                 ),
-              },
+              }] : []),
             ]}
           />
         </Panel>
-        <CompactForm
-          title="Create integration"
-          initialValues={{ tenant_id: String(data.tenants[0]?.id ?? ""), name: "", integration_type: "compliance", endpoint_url: "", status: "configured" }}
-          fields={[
-            { name: "tenant_id", label: "Tenant", type: "select", options: tenantOptions(data.tenants) },
-            { name: "name", label: "Name", required: true },
-            { name: "integration_type", label: "Type", required: true },
-            { name: "endpoint_url", label: "Endpoint URL" },
-            { name: "status", label: "Status", type: "select", options: integrationStatusOptions, required: true },
-          ]}
-          onSubmit={async (values) => {
-            await apiRequest<IntegrationConnection>("/api/integrations", {
-              method: "POST",
-              body: JSON.stringify({ ...values, tenant_id: values.tenant_id ? Number(values.tenant_id) : null, endpoint_url: values.endpoint_url || null }),
-            });
-            await data.reload();
-          }}
-        />
+        {permissions.canManageAdmin ? (
+          <CompactForm
+            title="Create integration"
+            initialValues={{ tenant_id: String(data.tenants[0]?.id ?? ""), name: "", integration_type: "compliance", endpoint_url: "", status: "configured" }}
+            fields={[
+              { name: "tenant_id", label: "Tenant", type: "select", options: tenantOptions(data.tenants) },
+              { name: "name", label: "Name", required: true },
+              { name: "integration_type", label: "Type", required: true },
+              { name: "endpoint_url", label: "Endpoint URL" },
+              { name: "status", label: "Status", type: "select", options: integrationStatusOptions, required: true },
+            ]}
+            onSubmit={async (values) => {
+              await apiRequest<IntegrationConnection>("/api/integrations", {
+                method: "POST",
+                body: JSON.stringify({ ...values, tenant_id: values.tenant_id ? Number(values.tenant_id) : null, endpoint_url: values.endpoint_url || null }),
+              });
+              await data.reload();
+            }}
+          />
+        ) : <ReadOnlyPanel message="Only Admin users can configure or sync integrations." />}
       </div>
     </>
   );
@@ -1404,6 +1477,7 @@ export function IntegrationsScreen() {
 
 export function SSOScreen() {
   const data = usePortalData();
+  const permissions = useRolePermissions();
   const [ssoMessage, setSsoMessage] = useState<string | null>(null);
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
@@ -1420,9 +1494,9 @@ export function SSOScreen() {
               { header: "Type", cell: (row) => row.provider_type },
               { header: "Metadata", cell: (row) => row.metadata_url ?? "Not set" },
               { header: "Status", cell: (row) => <StatusChip status={row.status} /> },
-              {
+              ...(permissions.canManageAdmin ? [{
                 header: "Test",
-                cell: (row) => (
+                cell: (row: SSOProvider) => (
                   <button
                     className="text-xs font-semibold text-primary"
                     onClick={async () => {
@@ -1436,7 +1510,7 @@ export function SSOScreen() {
               },
               {
                 header: "Callback",
-                cell: (row) => (
+                cell: (row: SSOProvider) => (
                   <button
                     className="text-xs font-semibold text-primary"
                     onClick={async () => {
@@ -1453,29 +1527,31 @@ export function SSOScreen() {
                     Verify
                   </button>
                 ),
-              },
+              }] : []),
             ]}
           />
           {ssoMessage ? <div className="mt-3 rounded border border-line bg-slate-50 px-3 py-2 text-sm text-muted">{ssoMessage}</div> : null}
         </Panel>
-        <CompactForm
-          title="Create provider"
-          initialValues={{ tenant_id: String(data.tenants[0]?.id ?? ""), name: "", provider_type: "saml", metadata_url: "", status: "disabled" }}
-          fields={[
-            { name: "tenant_id", label: "Tenant", type: "select", options: tenantOptions(data.tenants) },
-            { name: "name", label: "Name", required: true },
-            { name: "provider_type", label: "Provider type", required: true },
-            { name: "metadata_url", label: "Metadata URL" },
-            { name: "status", label: "Status", type: "select", options: ssoStatusOptions, required: true },
-          ]}
-          onSubmit={async (values) => {
-            await apiRequest<SSOProvider>("/api/sso-providers", {
-              method: "POST",
-              body: JSON.stringify({ ...values, tenant_id: values.tenant_id ? Number(values.tenant_id) : null, metadata_url: values.metadata_url || null }),
-            });
-            await data.reload();
-          }}
-        />
+        {permissions.canManageAdmin ? (
+          <CompactForm
+            title="Create provider"
+            initialValues={{ tenant_id: String(data.tenants[0]?.id ?? ""), name: "", provider_type: "saml", metadata_url: "", status: "disabled" }}
+            fields={[
+              { name: "tenant_id", label: "Tenant", type: "select", options: tenantOptions(data.tenants) },
+              { name: "name", label: "Name", required: true },
+              { name: "provider_type", label: "Provider type", required: true },
+              { name: "metadata_url", label: "Metadata URL" },
+              { name: "status", label: "Status", type: "select", options: ssoStatusOptions, required: true },
+            ]}
+            onSubmit={async (values) => {
+              await apiRequest<SSOProvider>("/api/sso-providers", {
+                method: "POST",
+                body: JSON.stringify({ ...values, tenant_id: values.tenant_id ? Number(values.tenant_id) : null, metadata_url: values.metadata_url || null }),
+              });
+              await data.reload();
+            }}
+          />
+        ) : <ReadOnlyPanel message="Only Admin users can configure SSO providers." />}
       </div>
     </>
   );
@@ -1483,6 +1559,7 @@ export function SSOScreen() {
 
 export function AuditLogsScreen() {
   const data = usePortalData();
+  const permissions = useRolePermissions();
   const [filters, setFilters] = useState({ action: "", entity_type: "", actor_id: "", date_from: "", date_to: "" });
   const [filteredLogs, setFilteredLogs] = useState<AuditLog[] | null>(null);
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
@@ -1497,32 +1574,36 @@ export function AuditLogsScreen() {
   return (
     <>
       <PageHeader title="Audit Logs" description="Immutable audit trail for user actions, record changes, and governance activity." />
-      <div className="mb-4 grid gap-3 rounded border border-line bg-panel p-4 md:grid-cols-6">
-        <input value={filters.action} onChange={(event) => setFilters((current) => ({ ...current, action: event.target.value }))} placeholder="Action" className="rounded border border-line px-3 py-2 text-sm outline-none focus:border-primary" />
-        <input value={filters.entity_type} onChange={(event) => setFilters((current) => ({ ...current, entity_type: event.target.value }))} placeholder="Entity type" className="rounded border border-line px-3 py-2 text-sm outline-none focus:border-primary" />
-        <select value={filters.actor_id} onChange={(event) => setFilters((current) => ({ ...current, actor_id: event.target.value }))} className="rounded border border-line bg-white px-3 py-2 text-sm outline-none focus:border-primary">
-          <option value="">All actors</option>
-          {data.users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}
-        </select>
-        <input value={filters.date_from} onChange={(event) => setFilters((current) => ({ ...current, date_from: event.target.value }))} type="date" className="rounded border border-line px-3 py-2 text-sm outline-none focus:border-primary" />
-        <input value={filters.date_to} onChange={(event) => setFilters((current) => ({ ...current, date_to: event.target.value }))} type="date" className="rounded border border-line px-3 py-2 text-sm outline-none focus:border-primary" />
-        <div className="flex gap-2">
-          <button
-            className="rounded bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-teal-800"
-            onClick={async () => setFilteredLogs(await apiRequest<AuditLog[]>(auditPath))}
-          >
-            Apply
-          </button>
-          <button className="rounded border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-slate-50" onClick={() => { setFilters({ action: "", entity_type: "", actor_id: "", date_from: "", date_to: "" }); setFilteredLogs(null); }}>
-            Reset
-          </button>
-        </div>
-      </div>
-      <div className="mb-4">
-        <button className="rounded border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-slate-50" onClick={() => void downloadApiFile(auditExportPath, "audit-logs.csv")}>
-          Export CSV
-        </button>
-      </div>
+      {permissions.canAudit ? (
+        <>
+          <div className="mb-4 grid gap-3 rounded border border-line bg-panel p-4 md:grid-cols-6">
+            <input value={filters.action} onChange={(event) => setFilters((current) => ({ ...current, action: event.target.value }))} placeholder="Action" className="rounded border border-line px-3 py-2 text-sm outline-none focus:border-primary" />
+            <input value={filters.entity_type} onChange={(event) => setFilters((current) => ({ ...current, entity_type: event.target.value }))} placeholder="Entity type" className="rounded border border-line px-3 py-2 text-sm outline-none focus:border-primary" />
+            <select value={filters.actor_id} onChange={(event) => setFilters((current) => ({ ...current, actor_id: event.target.value }))} className="rounded border border-line bg-white px-3 py-2 text-sm outline-none focus:border-primary">
+              <option value="">All actors</option>
+              {data.users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}
+            </select>
+            <input value={filters.date_from} onChange={(event) => setFilters((current) => ({ ...current, date_from: event.target.value }))} type="date" className="rounded border border-line px-3 py-2 text-sm outline-none focus:border-primary" />
+            <input value={filters.date_to} onChange={(event) => setFilters((current) => ({ ...current, date_to: event.target.value }))} type="date" className="rounded border border-line px-3 py-2 text-sm outline-none focus:border-primary" />
+            <div className="flex gap-2">
+              <button
+                className="rounded bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-teal-800"
+                onClick={async () => setFilteredLogs(await apiRequest<AuditLog[]>(auditPath))}
+              >
+                Apply
+              </button>
+              <button className="rounded border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-slate-50" onClick={() => { setFilters({ action: "", entity_type: "", actor_id: "", date_from: "", date_to: "" }); setFilteredLogs(null); }}>
+                Reset
+              </button>
+            </div>
+          </div>
+          <div className="mb-4">
+            <button className="rounded border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-slate-50" onClick={() => void downloadApiFile(auditExportPath, "audit-logs.csv")}>
+              Export CSV
+            </button>
+          </div>
+        </>
+      ) : null}
       <Panel title="Recent audit events">
         <DataTable
           rows={auditRows}
@@ -1541,6 +1622,7 @@ export function AuditLogsScreen() {
 
 export function SettingsScreen() {
   const data = usePortalData();
+  const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
   return (
@@ -1558,24 +1640,26 @@ export function SettingsScreen() {
             ]}
           />
         </Panel>
-        <CompactForm
-          title="Create user"
-          initialValues={{ name: "", email: "", password: "ChangeMe@123", role: "Manager", department_id: "" }}
-          fields={[
-            { name: "name", label: "Name", required: true },
-            { name: "email", label: "Email", type: "email", required: true },
-            { name: "password", label: "Temporary password", type: "password", required: true },
-            { name: "role", label: "Role", type: "select", options: roleOptions, required: true },
-            { name: "department_id", label: "Department", type: "select", options: departmentOptions(data.departments) },
-          ]}
-          onSubmit={async (values) => {
-            await apiRequest<User>("/api/users", {
-              method: "POST",
-              body: JSON.stringify({ ...values, department_id: values.department_id ? Number(values.department_id) : null }),
-            });
-            await data.reload();
-          }}
-        />
+        {permissions.canManageAdmin ? (
+          <CompactForm
+            title="Create user"
+            initialValues={{ name: "", email: "", password: "ChangeMe@123", role: "Manager", department_id: "" }}
+            fields={[
+              { name: "name", label: "Name", required: true },
+              { name: "email", label: "Email", type: "email", required: true },
+              { name: "password", label: "Temporary password", type: "password", required: true },
+              { name: "role", label: "Role", type: "select", options: roleOptions, required: true },
+              { name: "department_id", label: "Department", type: "select", options: departmentOptions(data.departments) },
+            ]}
+            onSubmit={async (values) => {
+              await apiRequest<User>("/api/users", {
+                method: "POST",
+                body: JSON.stringify({ ...values, department_id: values.department_id ? Number(values.department_id) : null }),
+              });
+              await data.reload();
+            }}
+          />
+        ) : <ReadOnlyPanel message="Only Admin users can create users or change role assignments." />}
       </div>
     </>
   );
