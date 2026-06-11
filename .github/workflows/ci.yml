@@ -112,6 +112,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -130,4 +132,4 @@ jobs:
           node --check scripts/capture-screenshots.mjs
 
       - name: Check whitespace errors
-        run: git show --check --format=short HEAD
+        run: git diff --check HEAD^ HEAD
