@@ -6,6 +6,20 @@ A full-stack enterprise governance, risk, and compliance portal for managing pol
 
 A centralized enterprise governance platform that helps organizations manage policies, committees, decisions, compliance obligations, governance frameworks, approvals, documentation, and organizational accountability.
 
+## Project Status
+
+This repository is complete as a portfolio/demo MVP.
+
+- Live frontend is deployed on Vercel.
+- Backend API is deployed on Render.
+- PostgreSQL/Supabase is connected.
+- GitHub Actions CI is configured and passing.
+- Production smoke checks pass for the deployed demo.
+- Final screenshot pack is available in `screenshots/`.
+- Final MVP release tag: `v1.0.0-mvp`.
+
+This is intentionally a demo/MVP project. It uses seeded demo data and is not intended for real company data without additional production account setup.
+
 ## Stack
 
 - Frontend: Next.js, TypeScript, Tailwind CSS
@@ -14,6 +28,21 @@ A centralized enterprise governance platform that helps organizations manage pol
 - Cache: Redis
 - Deployment baseline: Docker Compose
 
+## What It Demonstrates
+
+- Full-stack application architecture
+- Authentication and JWT sessions
+- Role-based access control
+- Role-specific data visibility
+- REST API design
+- Dashboard and admin UI design
+- Server-side pagination metadata
+- Audit logging
+- Deployment debugging
+- CORS troubleshooting
+- CI, smoke checks, and release verification
+- Documentation and portfolio presentation
+
 ## Live Deployment
 
 - Frontend: [Vercel](https://governance-management-portal-4g7p.vercel.app)
@@ -21,6 +50,8 @@ A centralized enterprise governance platform that helps organizations manage pol
 - Backend readiness: [Render database readiness](https://governance-management-portal.onrender.com/health/ready)
 
 ## Screenshots
+
+The complete screenshot pack for LinkedIn/portfolio use is in `screenshots/`.
 
 Dashboard overview:
 
@@ -65,12 +96,16 @@ flowchart LR
 ## Repository Layout
 
 ```text
-frontend/   Next.js application
-backend/    FastAPI application
-database/   Database notes and seed guidance
-docker/     Deployment and infrastructure notes
-docs/       Product, architecture, and implementation docs
+frontend/      Next.js application
+backend/       FastAPI application
+docs/          Product, architecture, deployment, and verification docs
+screenshots/   Final portfolio screenshot pack
+scripts/       QA, smoke-test, and screenshot automation scripts
+database/      Database notes and seed guidance
+docker/        Deployment and infrastructure notes
 ```
+
+For a full explanation of the product, domain concepts, modules, architecture, scripts, and completion status, read [Project Guide](docs/project-guide.md).
 
 ## Local Development
 
@@ -167,6 +202,7 @@ Recommended screenshot set:
 
 ## Documentation
 
+- [Project guide](docs/project-guide.md)
 - [Product brief](docs/product-brief.md)
 - [Architecture](docs/architecture.md)
 - [API reference](docs/api.md)

@@ -1,6 +1,8 @@
-# Screenshots
+# README Screenshots
 
-Add captured product screenshots here after deploying the latest `main` branch.
+This folder contains the smaller screenshot set embedded in the root README.
+
+The complete LinkedIn/portfolio screenshot pack is stored in the top-level `screenshots/` folder.
 
 Recommended files:
 
@@ -18,4 +20,10 @@ Refresh all screenshots with:
 
 ```bash
 SCREENSHOT_FRONTEND_URL=https://governance-management-portal-4g7p.vercel.app node scripts/capture-screenshots.mjs
+```
+
+Refresh the complete portfolio screenshot pack with:
+
+```bash
+SCREENSHOT_FRONTEND_URL=https://governance-management-portal-4g7p.vercel.app node scripts/capture-linkedin-screenshots.mjs
 ```
