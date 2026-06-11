@@ -12,6 +12,54 @@ A centralized enterprise governance platform that helps organizations manage pol
 - Cache: Redis
 - Deployment baseline: Docker Compose
 
+## Live Deployment
+
+- Frontend: [Vercel](https://governance-management-portal-4g7p.vercel.app)
+- Backend: [Render health check](https://governance-management-portal.onrender.com/health)
+- Backend readiness: [Render database readiness](https://governance-management-portal.onrender.com/health/ready)
+
+## Screenshots
+
+Dashboard overview:
+
+![Executive dashboard](docs/screenshots/01-dashboard.png)
+
+Policy lifecycle with server-side pagination:
+
+![Policies with pagination](docs/screenshots/02-policies-pagination.png)
+
+Action tracking:
+
+![Action item tracker](docs/screenshots/03-action-items.png)
+
+Notifications and alert visibility:
+
+![Notifications](docs/screenshots/04-notifications.png)
+
+Audit trail:
+
+![Audit logs](docs/screenshots/05-audit-logs.png)
+
+Auditor read-only role view:
+
+![Auditor read-only view](docs/screenshots/06-auditor-read-only.png)
+
+Board member published-policy view:
+
+![Board member view](docs/screenshots/07-board-member-view.png)
+
+## Architecture
+
+```mermaid
+flowchart LR
+  User["Browser user"] --> Vercel["Vercel Next.js frontend"]
+  Vercel -->|/api rewrite| Render["Render FastAPI backend"]
+  Render --> Supabase["Supabase PostgreSQL"]
+  Render --> Storage["Local/S3-compatible document storage"]
+  Render --> SMTP["Optional SMTP provider"]
+  Render --> Audit["Audit log tables"]
+```
+
 ## Repository Layout
 
 ```text
@@ -91,6 +139,12 @@ For deployed demo role checks:
 
 ```bash
 ROLE_QA_BACKEND_URL=https://governance-management-portal.onrender.com node scripts/role-qa.mjs
+```
+
+To refresh screenshots after a deploy:
+
+```bash
+SCREENSHOT_FRONTEND_URL=https://governance-management-portal-4g7p.vercel.app node scripts/capture-screenshots.mjs
 ```
 
 ## Demo and Screenshots
