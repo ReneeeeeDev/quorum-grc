@@ -58,6 +58,12 @@ Base URL: `http://localhost:8000`
 - `POST /api/risks`
 - `PUT /api/risks/{risk_id}`
 
+## Operations
+
+- `GET /health`
+- `GET /health/ready`
+- `GET /api/ops/production-readiness` Admin only
+
 ## Pagination
 
 List endpoints accept bounded pagination query parameters:

@@ -36,6 +36,7 @@ try {
   await checkBackendHealth();
   await checkFrontendRoutes();
   const token = await checkLogin();
+  await checkProductionReadiness(token);
   await checkAuthenticatedApis(token);
   await checkPagination(token);
   await checkLogout(token);
@@ -85,6 +86,16 @@ async function checkLogin() {
     throw new Error("Login response did not include access_token.");
   }
   return body.access_token;
+}
+
+async function checkProductionReadiness(token) {
+  const response = await request(`${backendUrl}/api/ops/production-readiness`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  record("api production readiness", response.ok, `${response.status}`);
+  if (!response.ok) return;
+  const body = await response.json();
+  record("api production readiness checks", Array.isArray(body.checks) && body.checks.length >= 5, `status ${body.status ?? "missing"}`);
 }
 
 async function checkAuthenticatedApis(token) {

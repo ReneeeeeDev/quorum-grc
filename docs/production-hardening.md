@@ -5,6 +5,8 @@ These items are prepared for the later deployment pass. They do not require live
 ## Monitoring
 
 - Use Render service logs for backend request and exception visibility.
+- Use `X-Request-ID` response headers to correlate frontend reports with backend logs.
+- Set `SENTRY_DSN` to enable backend exception capture in Sentry.
 - Add an uptime monitor against:
   - `GET /health`
   - `GET /health/ready`
@@ -15,6 +17,7 @@ These items are prepared for the later deployment pass. They do not require live
 ## Backups
 
 - Enable Supabase daily backups before production use.
+- Set `BACKUP_POLICY_URL` to the Supabase backup page or an internal restore-test evidence link.
 - Take a manual Supabase backup before schema changes.
 - Keep migration files in `backend/alembic/versions` as the source of truth.
 - Restore-test a backup before treating the system as production-ready.
@@ -29,6 +32,7 @@ These items are prepared for the later deployment pass. They do not require live
 ## Security
 
 - Keep `DEMO_SEED_ENABLED=false` for production.
+- Create the first production admin with `backend/scripts/create_admin.py`; do not keep demo admin accounts for real data.
 - Set `FRONTEND_ORIGIN` to the exact Vercel URL.
 - Keep API rate limiting enabled with `RATE_LIMIT_PER_MINUTE`.
 - Keep auth-specific rate limiting enabled with `AUTH_RATE_LIMIT_PER_MINUTE`.
@@ -66,5 +70,7 @@ Before calling the deployed app production-ready:
 2. Apply database migrations.
 3. Set production environment variables.
 4. Run `node scripts/production-smoke.mjs`.
-5. Confirm backup policy and uptime monitors are active.
-6. Confirm [Production Data Policy](data-policy.md) is followed for demo vs real data.
+5. Review `GET /api/ops/production-readiness` as an Admin user.
+6. Confirm backup policy and uptime monitors are active.
+7. Confirm [Production Data Policy](data-policy.md) is followed for demo vs real data.
+8. Complete [MVP Release Verification](release-verification.md).

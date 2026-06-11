@@ -116,7 +116,9 @@ Default local URLs:
 
 - Use `backend/.env.production.example` as the backend secret template.
 - Set `DEMO_SEED_ENABLED=false` for real production data.
+- Create the first named production admin with `backend/scripts/create_admin.py` when demo seeding is disabled.
 - Set `NEXT_BACKEND_URL` for the frontend server to reach the backend.
+- Review `GET /api/ops/production-readiness` as an Admin user before handoff.
 - The backend container runs Alembic migrations before starting.
 - See [Deployment](docs/deployment.md) for platform options.
 - For the chosen managed stack, see [Vercel + Render + Supabase deployment](docs/deploy-vercel-render-supabase.md).
@@ -170,7 +172,9 @@ Recommended screenshot set:
 - [API reference](docs/api.md)
 - [Verification](docs/verification.md)
 - [Deployment](docs/deployment.md)
+- [MVP release verification](docs/release-verification.md)
 - [Monitoring runbook](docs/monitoring.md)
+- [Production hardening](docs/production-hardening.md)
 - [Production data policy](docs/data-policy.md)
 - [Demo script](docs/demo-script.md)
 - [Known limitations](docs/known-limitations.md)

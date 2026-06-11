@@ -173,6 +173,10 @@ def page_query(query, limit: int, offset: int = 0, response: FastAPIResponse | N
     return query.offset(offset).limit(limit)
 
 
+def readiness_check(name: str, ok: bool, detail: str, required: bool = True) -> dict[str, object]:
+    return {"name": name, "ok": ok, "required": required, "detail": detail}
+
+
 def assert_entity_access(entity, current_user: User) -> None:
     if current_user.role == Role.ADMIN:
         return
@@ -290,6 +294,93 @@ def create_user(
     db.commit()
     db.refresh(user)
     return user
+
+
+@router.get("/ops/production-readiness")
+def production_readiness(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin_user),
+) -> dict[str, object]:
+    settings = get_settings()
+    enabled_sso_providers = (
+        db.query(SSOProvider)
+        .filter(SSOProvider.status == SSOProviderStatus.ENABLED)
+        .count()
+    )
+    admin_count = db.query(User).filter(User.role == Role.ADMIN).count()
+    checks = [
+        readiness_check(
+            "environment",
+            settings.environment == "production",
+            f"ENVIRONMENT={settings.environment}",
+            required=False,
+        ),
+        readiness_check(
+            "demo seed disabled",
+            not settings.demo_seed_enabled,
+            "DEMO_SEED_ENABLED must be false for real production data.",
+        ),
+        readiness_check(
+            "jwt secret rotated",
+            settings.jwt_secret_key not in {"change-me-in-production", "smoke-test-secret"} and len(settings.jwt_secret_key) >= 32,
+            "JWT_SECRET_KEY must be unique, private, and at least 32 characters.",
+        ),
+        readiness_check(
+            "frontend origin locked",
+            settings.frontend_origin.startswith("https://"),
+            f"FRONTEND_ORIGIN={settings.frontend_origin}",
+        ),
+        readiness_check(
+            "rate limits enabled",
+            settings.rate_limit_per_minute > 0 and settings.auth_rate_limit_per_minute > 0,
+            f"RATE_LIMIT_PER_MINUTE={settings.rate_limit_per_minute}, AUTH_RATE_LIMIT_PER_MINUTE={settings.auth_rate_limit_per_minute}",
+        ),
+        readiness_check(
+            "admin user exists",
+            admin_count > 0,
+            f"{admin_count} admin user(s) configured.",
+        ),
+        readiness_check(
+            "document storage configured",
+            (
+                bool(settings.s3_bucket and settings.s3_region)
+                if settings.storage_backend == "s3"
+                else bool(settings.file_storage_path)
+            ),
+            f"STORAGE_BACKEND={settings.storage_backend}",
+        ),
+        readiness_check(
+            "smtp configured",
+            bool(settings.smtp_host and settings.notification_from_email),
+            "SMTP is required for live email notification dispatch.",
+            required=False,
+        ),
+        readiness_check(
+            "sso provider enabled",
+            (enabled_sso_providers > 0 if settings.sso_enabled else True),
+            f"SSO_ENABLED={settings.sso_enabled}, enabled providers={enabled_sso_providers}",
+            required=False,
+        ),
+        readiness_check(
+            "sentry configured",
+            bool(settings.sentry_dsn),
+            "SENTRY_DSN enables application error monitoring.",
+            required=False,
+        ),
+        readiness_check(
+            "backup policy documented",
+            bool(settings.backup_policy_url),
+            "BACKUP_POLICY_URL should point to the Supabase backup and restore-test evidence.",
+            required=False,
+        ),
+    ]
+    required_checks = [check for check in checks if check["required"]]
+    required_ready = all(bool(check["ok"]) for check in required_checks)
+    return {
+        "status": "ready" if required_ready else "action_required",
+        "required_ready": required_ready,
+        "checks": checks,
+    }
 
 
 @router.get("/policies", response_model=list[PolicyRead])

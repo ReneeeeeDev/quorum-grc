@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
 from time import monotonic
+from uuid import uuid4
 
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -28,6 +29,18 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 settings = get_settings()
 
+if settings.sentry_dsn:
+    try:
+        import sentry_sdk
+
+        sentry_sdk.init(
+            dsn=settings.sentry_dsn,
+            environment=settings.environment,
+            traces_sample_rate=0.05,
+        )
+    except ImportError:
+        pass
+
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
 
 rate_limit_window_seconds = 60
@@ -45,6 +58,7 @@ def security_headers() -> dict[str, str]:
 
 @app.middleware("http")
 async def security_and_rate_limit_middleware(request: Request, call_next):
+    request_id = request.headers.get("X-Request-ID", uuid4().hex)
     client_host = request.client.host if request.client else "unknown"
     bucket_key = f"{client_host}:{request.url.path}"
     request_limit = settings.auth_rate_limit_per_minute if request.url.path == "/api/auth/login" else settings.rate_limit_per_minute
@@ -59,11 +73,12 @@ async def security_and_rate_limit_middleware(request: Request, call_next):
         return JSONResponse(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             content={"detail": "Too many requests"},
-            headers={"Retry-After": str(rate_limit_window_seconds), **security_headers()},
+            headers={"Retry-After": str(rate_limit_window_seconds), "X-Request-ID": request_id, **security_headers()},
         )
 
     response = await call_next(request)
     response.headers.update(security_headers())
+    response.headers["X-Request-ID"] = request_id
     return response
 
 allowed_origins = sorted({settings.frontend_origin, "http://localhost:3000", "http://127.0.0.1:3000"})

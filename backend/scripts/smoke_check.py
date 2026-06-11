@@ -71,6 +71,14 @@ def main() -> None:
         if report_response.json() != expected_report:
             raise AssertionError(f"/api/reports mismatch: {report_response.json()}")
 
+        production_readiness = client.get("/api/ops/production-readiness", headers=headers)
+        production_readiness.raise_for_status()
+        readiness_body = production_readiness.json()
+        if readiness_body.get("status") not in {"ready", "action_required"}:
+            raise AssertionError("Production readiness endpoint returned an invalid status")
+        if not readiness_body.get("checks"):
+            raise AssertionError("Production readiness endpoint did not return checks")
+
         report_breakdown = client.get("/api/reports/breakdown", headers=headers)
         report_breakdown.raise_for_status()
         breakdown = report_breakdown.json()

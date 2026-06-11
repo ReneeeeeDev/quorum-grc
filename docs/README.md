@@ -7,6 +7,7 @@
 - [Deployment](deployment.md)
 - [Vercel + Render + Supabase deployment](deploy-vercel-render-supabase.md)
 - [Production smoke check](production-smoke-check.md)
+- [MVP release verification](release-verification.md)
 - [Production hardening](production-hardening.md)
 - [Monitoring runbook](monitoring.md)
 - [Production data policy](data-policy.md)

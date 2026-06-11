@@ -22,6 +22,13 @@ Expected:
   - `X-Frame-Options`
   - `Referrer-Policy`
   - `Permissions-Policy`
+- `X-Request-ID` is present and can be used to correlate support reports with backend logs.
+
+## Error Tracking
+
+- Set `SENTRY_DSN` in Render to enable backend exception capture.
+- Keep `ENVIRONMENT=production` so Sentry events are tagged correctly.
+- Use the `X-Request-ID` response header in user bug reports and support notes.
 
 ## Vercel Frontend
 
@@ -59,3 +66,4 @@ Alert if any check fails two times in a row.
 3. Check Vercel environment variable `NEXT_BACKEND_URL`.
 4. Check Render environment variable `FRONTEND_ORIGIN`.
 5. Run `node scripts/production-smoke.mjs`.
+6. Review `/api/ops/production-readiness` as an Admin user.

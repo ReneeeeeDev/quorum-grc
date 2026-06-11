@@ -43,7 +43,9 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run backend smoke checks
-        run: python scripts/smoke_check.py
+        run: |
+          python -m py_compile scripts/create_admin.py
+          python scripts/smoke_check.py
 
   frontend-build:
     name: Frontend typecheck and build
@@ -130,6 +132,7 @@ jobs:
         run: |
           node --check scripts/role-qa.mjs
           node --check scripts/capture-screenshots.mjs
+          node --check scripts/production-smoke.mjs
 
       - name: Check whitespace errors
         run: git diff --check HEAD^ HEAD

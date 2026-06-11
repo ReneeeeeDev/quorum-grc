@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     smtp_password: str | None = None
     notification_from_email: str = "governance@example.com"
     sso_enabled: bool = False
+    sentry_dsn: str | None = None
+    backup_policy_url: str | None = None
     demo_seed_enabled: bool = True
     rate_limit_per_minute: int = 120
     auth_rate_limit_per_minute: int = 20

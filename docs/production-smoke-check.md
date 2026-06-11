@@ -1,6 +1,6 @@
 # Production Smoke Check
 
-Use this after Vercel, Render, and Supabase are connected. It validates the deployed frontend, deployed backend, authentication, CORS, key governance APIs, security headers, and database readiness.
+Use this after Vercel, Render, and Supabase are connected. It validates the deployed frontend, deployed backend, authentication, CORS, key governance APIs, security headers, database readiness, and production readiness metadata.
 
 ## Required Variables
 
@@ -52,6 +52,7 @@ node scripts/production-smoke.mjs
   - `/settings`
 - Auth login: `POST /api/auth/login`
 - Auth logout: `POST /api/auth/logout`
+- Admin production readiness: `GET /api/ops/production-readiness`
 - Pagination behavior: `GET /api/policies?limit=1&offset=0`
 - Authenticated API access:
   - `/api/auth/me`

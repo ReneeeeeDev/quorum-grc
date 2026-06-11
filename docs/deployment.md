@@ -43,8 +43,9 @@ Production checklist:
 3. Set `DEMO_SEED_ENABLED=false` for real production data.
 4. Set `FRONTEND_ORIGIN` to the public frontend URL.
 5. Set `NEXT_BACKEND_URL=http://backend:8000` for Compose deployments.
-6. Put a reverse proxy such as Caddy, Nginx, or Traefik in front of the frontend container for HTTPS.
-7. Back up the `postgres-data` volume.
+6. Run `python backend/scripts/create_admin.py` once with `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME`, and `ADMIN_TENANT_NAME`.
+7. Put a reverse proxy such as Caddy, Nginx, or Traefik in front of the frontend container for HTTPS.
+8. Back up the `postgres-data` volume.
 
 ## Managed Platform Options
 
@@ -106,10 +107,12 @@ Required production secrets:
 
 - `JWT_SECRET_KEY`
 - `DATABASE_URL`
+- `ADMIN_PASSWORD` for one-time first-admin bootstrap
 - `SMTP_USERNAME`
 - `SMTP_PASSWORD`
 - `AWS_ACCESS_KEY_ID`
 - `AWS_SECRET_ACCESS_KEY`
+- `SENTRY_DSN` if error monitoring is enabled
 
 ## Storage
 
@@ -177,3 +180,4 @@ node scripts/production-smoke.mjs
 
 See [production-smoke-check.md](production-smoke-check.md) and [production-hardening.md](production-hardening.md).
 See [monitoring.md](monitoring.md) and [data-policy.md](data-policy.md) for operations and production data rules.
+See [MVP Release Verification](release-verification.md) before tagging the final release.
