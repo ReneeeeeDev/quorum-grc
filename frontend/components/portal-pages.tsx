@@ -4,7 +4,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import { AlertTriangle, Bell, CheckCircle2, Clock, FileCheck2, ListChecks, Paperclip, Plug } from "lucide-react";
 
 import { StatusChip } from "@/components/status-chip";
-import { apiRequest, apiUpload, getToken } from "@/lib/api";
+import { apiRequest, apiRequestWithMeta, apiUpload, getToken } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import type {
   ActionItem,
@@ -57,7 +57,8 @@ type PortalResource =
   | "ssoProviders"
   | "complianceObligations"
   | "risks";
-type PortalRequest = { key: PortalResource; request: Promise<unknown> };
+type PortalPayload<T = unknown> = { data: T; totalCount: number | null };
+type PortalRequest = { key: PortalResource; request: Promise<PortalPayload> };
 type PortalResourceParams = Partial<Record<PortalResource, string>>;
 
 const allPortalResources: PortalResource[] = [
@@ -251,32 +252,39 @@ function ServerPager({
   offset,
   pageSize,
   rows,
+  total,
   onOffsetChange,
 }: {
   offset: number;
   pageSize: number;
   rows: unknown[];
+  total: number | null | undefined;
   onOffsetChange: (offset: number) => void;
 }) {
   const currentPage = Math.floor(offset / pageSize) + 1;
+  const totalPages = total == null ? null : Math.max(1, Math.ceil(total / pageSize));
+  const showingStart = rows.length ? offset + 1 : 0;
+  const showingEnd = offset + rows.length;
   return (
-    <div className="mt-4 flex items-center justify-end gap-2">
+    <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+      <span className="text-xs text-muted">
+        {total == null ? `Page ${currentPage}` : `Page ${currentPage} of ${totalPages} · Showing ${showingStart}-${showingEnd} of ${total}`}
+      </span>
       <button
         type="button"
         onClick={() => onOffsetChange(Math.max(0, offset - pageSize))}
         disabled={offset === 0}
         className="rounded border border-line px-3 py-1.5 text-xs font-semibold text-ink hover:bg-slate-50 disabled:opacity-50"
       >
-        Previous server page
+        Previous
       </button>
-      <span className="text-xs text-muted">Server page {currentPage}</span>
       <button
         type="button"
         onClick={() => onOffsetChange(offset + pageSize)}
-        disabled={rows.length < pageSize}
+        disabled={total == null ? rows.length < pageSize : offset + pageSize >= total}
         className="rounded border border-line px-3 py-1.5 text-xs font-semibold text-ink hover:bg-slate-50 disabled:opacity-50"
       >
-        Next server page
+        Next
       </button>
     </div>
   );
@@ -510,6 +518,7 @@ function usePortalData(resources: PortalResource[] = allPortalResources, resourc
   const [ssoProviders, setSsoProviders] = useState<SSOProvider[]>([]);
   const [complianceObligations, setComplianceObligations] = useState<ComplianceObligation[]>([]);
   const [risks, setRisks] = useState<Risk[]>([]);
+  const [totals, setTotals] = useState<Partial<Record<PortalResource, number>>>({});
 
   const reload = useCallback(async () => {
     setState("loading");
@@ -518,24 +527,24 @@ function usePortalData(resources: PortalResource[] = allPortalResources, resourc
     const selectedResources = new Set(resourceKey.split("|").filter(Boolean) as PortalResource[]);
     const params = JSON.parse(resourceParamsKey) as PortalResourceParams;
     const requestOptions: Array<PortalRequest | null> = [
-      selectedResources.has("users") ? { key: "users", request: apiRequest<User[]>(pathWithParams("/api/users", params.users)) } : null,
-      selectedResources.has("departments") ? { key: "departments", request: apiRequest<Department[]>(pathWithParams("/api/departments", params.departments)) } : null,
-      selectedResources.has("policies") ? { key: "policies", request: apiRequest<Policy[]>(pathWithParams("/api/policies", params.policies)) } : null,
-      selectedResources.has("meetings") ? { key: "meetings", request: apiRequest<Meeting[]>(pathWithParams("/api/meetings", params.meetings)) } : null,
-      selectedResources.has("decisions") ? { key: "decisions", request: apiRequest<Decision[]>(pathWithParams("/api/decisions", params.decisions)) } : null,
-      selectedResources.has("actions") ? { key: "actions", request: apiRequest<ActionItem[]>(pathWithParams("/api/action-items", params.actions)) } : null,
-      selectedResources.has("reports") ? { key: "reports", request: apiRequest<ReportSummary>("/api/reports") } : null,
-      selectedResources.has("reportBreakdown") ? { key: "reportBreakdown", request: apiRequest<ReportBreakdown>("/api/reports/breakdown") } : null,
-      selectedResources.has("auditLogs") ? { key: "auditLogs", request: apiRequest<AuditLog[]>(pathWithParams("/api/audit-logs", params.auditLogs)) } : null,
-      selectedResources.has("tenants") ? { key: "tenants", request: apiRequest<Tenant[]>(pathWithParams("/api/tenants", params.tenants)) } : null,
-      selectedResources.has("documents") ? { key: "documents", request: apiRequest<DocumentRecord[]>(pathWithParams("/api/documents", params.documents)) } : null,
-      selectedResources.has("notifications") ? { key: "notifications", request: apiRequest<NotificationRecord[]>(pathWithParams("/api/notifications", params.notifications)) } : null,
-      selectedResources.has("calendarEvents") ? { key: "calendarEvents", request: apiRequest<CalendarEvent[]>(pathWithParams("/api/calendar-events", params.calendarEvents)) } : null,
-      selectedResources.has("workflowSteps") ? { key: "workflowSteps", request: apiRequest<WorkflowStep[]>(pathWithParams("/api/workflow-steps", params.workflowSteps)) } : null,
-      selectedResources.has("integrations") ? { key: "integrations", request: apiRequest<IntegrationConnection[]>(pathWithParams("/api/integrations", params.integrations)) } : null,
-      selectedResources.has("ssoProviders") ? { key: "ssoProviders", request: apiRequest<SSOProvider[]>(pathWithParams("/api/sso-providers", params.ssoProviders)) } : null,
-      selectedResources.has("complianceObligations") ? { key: "complianceObligations", request: apiRequest<ComplianceObligation[]>(pathWithParams("/api/compliance-obligations", params.complianceObligations)) } : null,
-      selectedResources.has("risks") ? { key: "risks", request: apiRequest<Risk[]>(pathWithParams("/api/risks", params.risks)) } : null,
+      selectedResources.has("users") ? { key: "users", request: apiRequestWithMeta<User[]>(pathWithParams("/api/users", params.users)) } : null,
+      selectedResources.has("departments") ? { key: "departments", request: apiRequestWithMeta<Department[]>(pathWithParams("/api/departments", params.departments)) } : null,
+      selectedResources.has("policies") ? { key: "policies", request: apiRequestWithMeta<Policy[]>(pathWithParams("/api/policies", params.policies)) } : null,
+      selectedResources.has("meetings") ? { key: "meetings", request: apiRequestWithMeta<Meeting[]>(pathWithParams("/api/meetings", params.meetings)) } : null,
+      selectedResources.has("decisions") ? { key: "decisions", request: apiRequestWithMeta<Decision[]>(pathWithParams("/api/decisions", params.decisions)) } : null,
+      selectedResources.has("actions") ? { key: "actions", request: apiRequestWithMeta<ActionItem[]>(pathWithParams("/api/action-items", params.actions)) } : null,
+      selectedResources.has("reports") ? { key: "reports", request: apiRequest<ReportSummary>("/api/reports").then((data) => ({ data, totalCount: null })) } : null,
+      selectedResources.has("reportBreakdown") ? { key: "reportBreakdown", request: apiRequest<ReportBreakdown>("/api/reports/breakdown").then((data) => ({ data, totalCount: null })) } : null,
+      selectedResources.has("auditLogs") ? { key: "auditLogs", request: apiRequestWithMeta<AuditLog[]>(pathWithParams("/api/audit-logs", params.auditLogs)) } : null,
+      selectedResources.has("tenants") ? { key: "tenants", request: apiRequestWithMeta<Tenant[]>(pathWithParams("/api/tenants", params.tenants)) } : null,
+      selectedResources.has("documents") ? { key: "documents", request: apiRequestWithMeta<DocumentRecord[]>(pathWithParams("/api/documents", params.documents)) } : null,
+      selectedResources.has("notifications") ? { key: "notifications", request: apiRequestWithMeta<NotificationRecord[]>(pathWithParams("/api/notifications", params.notifications)) } : null,
+      selectedResources.has("calendarEvents") ? { key: "calendarEvents", request: apiRequestWithMeta<CalendarEvent[]>(pathWithParams("/api/calendar-events", params.calendarEvents)) } : null,
+      selectedResources.has("workflowSteps") ? { key: "workflowSteps", request: apiRequestWithMeta<WorkflowStep[]>(pathWithParams("/api/workflow-steps", params.workflowSteps)) } : null,
+      selectedResources.has("integrations") ? { key: "integrations", request: apiRequestWithMeta<IntegrationConnection[]>(pathWithParams("/api/integrations", params.integrations)) } : null,
+      selectedResources.has("ssoProviders") ? { key: "ssoProviders", request: apiRequestWithMeta<SSOProvider[]>(pathWithParams("/api/sso-providers", params.ssoProviders)) } : null,
+      selectedResources.has("complianceObligations") ? { key: "complianceObligations", request: apiRequestWithMeta<ComplianceObligation[]>(pathWithParams("/api/compliance-obligations", params.complianceObligations)) } : null,
+      selectedResources.has("risks") ? { key: "risks", request: apiRequestWithMeta<Risk[]>(pathWithParams("/api/risks", params.risks)) } : null,
     ];
     const requests = requestOptions.filter((request): request is PortalRequest => request !== null);
 
@@ -553,8 +562,19 @@ function usePortalData(resources: PortalResource[] = allPortalResources, resourc
       const index = requests.findIndex((entry) => entry.key === key);
       if (index === -1) return fallback;
       const result = results[index];
-      return result?.status === "fulfilled" ? (result.value as T) : fallback;
+      return result?.status === "fulfilled" ? (result.value.data as T) : fallback;
     };
+
+    setTotals((current) => {
+      const next = { ...current };
+      requests.forEach((entry, index) => {
+        const result = results[index];
+        if (result?.status === "fulfilled" && result.value.totalCount !== null) {
+          next[entry.key] = result.value.totalCount;
+        }
+      });
+      return next;
+    });
 
     if (selectedResources.has("users")) setUsers(valueFor<User[]>("users", []));
     if (selectedResources.has("departments")) setDepartments(valueFor<Department[]>("departments", []));
@@ -602,6 +622,7 @@ function usePortalData(resources: PortalResource[] = allPortalResources, resourc
     ssoProviders,
     complianceObligations,
     risks,
+    totals,
     reload,
   };
 }
@@ -762,7 +783,7 @@ export function PoliciesScreen() {
               }] : []),
             ]}
           />
-          <ServerPager offset={policyOffset} pageSize={serverPageSize} rows={data.policies} onOffsetChange={setPolicyOffset} />
+          <ServerPager offset={policyOffset} pageSize={serverPageSize} rows={data.policies} total={data.totals.policies} onOffsetChange={setPolicyOffset} />
         </Panel>
         {permissions.canManageGovernance ? (
           <CompactForm
@@ -1101,7 +1122,7 @@ export function DocumentsScreen() {
               },
             ]}
           />
-          <ServerPager offset={documentOffset} pageSize={serverPageSize} rows={data.documents} onOffsetChange={setDocumentOffset} />
+          <ServerPager offset={documentOffset} pageSize={serverPageSize} rows={data.documents} total={data.totals.documents} onOffsetChange={setDocumentOffset} />
         </Panel>
         {permissions.canUploadDocuments ? <DocumentUploadForm tenants={data.tenants} reload={data.reload} /> : <ReadOnlyPanel message="Your role can view and download visible documents, but cannot upload new evidence." />}
       </div>
@@ -1679,6 +1700,7 @@ export function AuditLogsScreen() {
   const permissions = useRolePermissions();
   const [filters, setFilters] = useState({ action: "", entity_type: "", actor_id: "", date_from: "", date_to: "" });
   const [filteredLogs, setFilteredLogs] = useState<AuditLog[] | null>(null);
+  const [filteredTotal, setFilteredTotal] = useState<number | null>(null);
 
   function buildAuditPath(offset: number) {
     const query = new URLSearchParams();
@@ -1692,6 +1714,7 @@ export function AuditLogsScreen() {
 
   const hasAuditFilters = Object.values(filters).some(Boolean);
   const auditRows = filteredLogs ?? data.auditLogs;
+  const auditTotal = filteredLogs ? filteredTotal : data.totals.auditLogs;
   const exportQuery = new URLSearchParams();
   Object.entries(filters).forEach(([key, value]) => {
     if (value) exportQuery.set(key, value);
@@ -1718,12 +1741,14 @@ export function AuditLogsScreen() {
                 className="rounded bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-teal-800"
                 onClick={async () => {
                   setAuditOffset(0);
-                  setFilteredLogs(await apiRequest<AuditLog[]>(buildAuditPath(0)));
+                  const response = await apiRequestWithMeta<AuditLog[]>(buildAuditPath(0));
+                  setFilteredLogs(response.data);
+                  setFilteredTotal(response.totalCount);
                 }}
               >
                 Apply
               </button>
-              <button className="rounded border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-slate-50" onClick={() => { setAuditOffset(0); setFilters({ action: "", entity_type: "", actor_id: "", date_from: "", date_to: "" }); setFilteredLogs(null); }}>
+              <button className="rounded border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-slate-50" onClick={() => { setAuditOffset(0); setFilters({ action: "", entity_type: "", actor_id: "", date_from: "", date_to: "" }); setFilteredLogs(null); setFilteredTotal(null); }}>
                 Reset
               </button>
             </div>
@@ -1750,12 +1775,16 @@ export function AuditLogsScreen() {
           offset={auditOffset}
           pageSize={serverPageSize}
           rows={auditRows}
+          total={auditTotal}
           onOffsetChange={async (nextOffset) => {
             setAuditOffset(nextOffset);
             if (hasAuditFilters) {
-              setFilteredLogs(await apiRequest<AuditLog[]>(buildAuditPath(nextOffset)));
+              const response = await apiRequestWithMeta<AuditLog[]>(buildAuditPath(nextOffset));
+              setFilteredLogs(response.data);
+              setFilteredTotal(response.totalCount);
             } else {
               setFilteredLogs(null);
+              setFilteredTotal(null);
             }
           }}
         />
@@ -1784,7 +1813,7 @@ export function SettingsScreen() {
               { header: "Department", cell: (row) => data.departments.find((department) => department.id === row.department_id)?.name ?? "Unassigned" },
             ]}
           />
-          <ServerPager offset={userOffset} pageSize={serverPageSize} rows={data.users} onOffsetChange={setUserOffset} />
+          <ServerPager offset={userOffset} pageSize={serverPageSize} rows={data.users} total={data.totals.users} onOffsetChange={setUserOffset} />
         </Panel>
         {permissions.canManageAdmin ? (
           <CompactForm

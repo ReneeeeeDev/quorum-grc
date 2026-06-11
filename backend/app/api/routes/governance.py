@@ -4,7 +4,7 @@ from pathlib import Path
 import smtplib
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response as FastAPIResponse, UploadFile, status
 from fastapi.responses import FileResponse, RedirectResponse, Response
 from sqlalchemy import false, func, or_
 from sqlalchemy.orm import Session
@@ -167,7 +167,9 @@ def visible_notifications_query(db: Session, current_user: User):
     return query.filter(or_(Notification.user_id == current_user.id, Notification.user_id.is_(None)))
 
 
-def page_query(query, limit: int, offset: int = 0):
+def page_query(query, limit: int, offset: int = 0, response: FastAPIResponse | None = None):
+    if response is not None:
+        response.headers["X-Total-Count"] = str(query.order_by(None).count())
     return query.offset(offset).limit(limit)
 
 
@@ -210,13 +212,14 @@ def assert_write_access(entity, current_user: User) -> None:
 def list_tenants(
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
+    response: FastAPIResponse = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[Tenant]:
     query = db.query(Tenant)
     if current_user.role != Role.ADMIN:
         query = query.filter(Tenant.id == current_user.tenant_id)
-    return page_query(query.order_by(Tenant.name), limit, offset).all()
+    return page_query(query.order_by(Tenant.name), limit, offset, response).all()
 
 
 @router.post("/tenants", response_model=TenantRead, status_code=status.HTTP_201_CREATED)
@@ -238,10 +241,11 @@ def create_tenant(
 def list_departments(
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
+    response: FastAPIResponse = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[Department]:
-    return page_query(scoped_query(db, Department, current_user).order_by(Department.name), limit, offset).all()
+    return page_query(scoped_query(db, Department, current_user).order_by(Department.name), limit, offset, response).all()
 
 
 @router.post("/departments", response_model=DepartmentRead, status_code=status.HTTP_201_CREATED)
@@ -263,10 +267,11 @@ def create_department(
 def list_users(
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
+    response: FastAPIResponse = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[User]:
-    return page_query(scoped_query(db, User, current_user).order_by(User.name), limit, offset).all()
+    return page_query(scoped_query(db, User, current_user).order_by(User.name), limit, offset, response).all()
 
 
 @router.post("/users", response_model=UserRead, status_code=status.HTTP_201_CREATED)
@@ -291,10 +296,11 @@ def create_user(
 def list_policies(
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
+    response: FastAPIResponse = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[Policy]:
-    return page_query(scoped_query(db, Policy, current_user).order_by(Policy.updated_at.desc()), limit, offset).all()
+    return page_query(scoped_query(db, Policy, current_user).order_by(Policy.updated_at.desc()), limit, offset, response).all()
 
 
 @router.post("/policies", response_model=PolicyRead, status_code=status.HTTP_201_CREATED)
@@ -346,10 +352,11 @@ def delete_policy(
 def list_meetings(
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
+    response: FastAPIResponse = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[Meeting]:
-    return page_query(scoped_query(db, Meeting, current_user).order_by(Meeting.meeting_date.desc()), limit, offset).all()
+    return page_query(scoped_query(db, Meeting, current_user).order_by(Meeting.meeting_date.desc()), limit, offset, response).all()
 
 
 @router.post("/meetings", response_model=MeetingRead, status_code=status.HTTP_201_CREATED)
@@ -371,10 +378,11 @@ def create_meeting(
 def list_decisions(
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
+    response: FastAPIResponse = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[Decision]:
-    return page_query(scoped_query(db, Decision, current_user).order_by(Decision.decision_date.desc()), limit, offset).all()
+    return page_query(scoped_query(db, Decision, current_user).order_by(Decision.decision_date.desc()), limit, offset, response).all()
 
 
 @router.post("/decisions", response_model=DecisionRead, status_code=status.HTTP_201_CREATED)
@@ -396,10 +404,11 @@ def create_decision(
 def list_action_items(
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
+    response: FastAPIResponse = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[ActionItem]:
-    return page_query(scoped_query(db, ActionItem, current_user).order_by(ActionItem.due_date.asc()), limit, offset).all()
+    return page_query(scoped_query(db, ActionItem, current_user).order_by(ActionItem.due_date.asc()), limit, offset, response).all()
 
 
 @router.post("/action-items", response_model=ActionItemRead, status_code=status.HTTP_201_CREATED)
@@ -556,10 +565,11 @@ def list_audit_logs(
     date_to: date | None = Query(None),
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
+    response: FastAPIResponse = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[AuditLog]:
-    return page_query(audit_query(db, current_user, action, entity_type, actor_id, date_from, date_to), limit, offset).all()
+    return page_query(audit_query(db, current_user, action, entity_type, actor_id, date_from, date_to), limit, offset, response).all()
 
 
 @router.get("/audit-logs/export")
@@ -582,10 +592,11 @@ def export_audit_logs(
 def list_documents(
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
+    response: FastAPIResponse = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[Document]:
-    return page_query(scoped_query(db, Document, current_user).order_by(Document.created_at.desc()), limit, offset).all()
+    return page_query(scoped_query(db, Document, current_user).order_by(Document.created_at.desc()), limit, offset, response).all()
 
 
 @router.get("/documents/{document_id}/download", response_model=None)
@@ -686,12 +697,13 @@ async def upload_document(
 def list_notifications(
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
+    response: FastAPIResponse = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[Notification]:
     query = visible_notifications_query(db, current_user)
     return (
-        page_query(query.order_by(Notification.created_at.desc()), limit, offset)
+        page_query(query.order_by(Notification.created_at.desc()), limit, offset, response)
         .all()
     )
 
@@ -771,10 +783,11 @@ def dispatch_notification(
 def list_calendar_events(
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
+    response: FastAPIResponse = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[CalendarEvent]:
-    return page_query(scoped_query(db, CalendarEvent, current_user).order_by(CalendarEvent.event_date.asc()), limit, offset).all()
+    return page_query(scoped_query(db, CalendarEvent, current_user).order_by(CalendarEvent.event_date.asc()), limit, offset, response).all()
 
 
 @router.get("/calendar-events/export.ics")
@@ -817,10 +830,11 @@ def create_calendar_event(
 def list_workflow_steps(
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
+    response: FastAPIResponse = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[WorkflowStep]:
-    return page_query(scoped_query(db, WorkflowStep, current_user).order_by(WorkflowStep.policy_id, WorkflowStep.sequence), limit, offset).all()
+    return page_query(scoped_query(db, WorkflowStep, current_user).order_by(WorkflowStep.policy_id, WorkflowStep.sequence), limit, offset, response).all()
 
 
 @router.post("/workflow-steps", response_model=WorkflowStepRead, status_code=status.HTTP_201_CREATED)
@@ -859,10 +873,11 @@ def update_workflow_step(
 def list_integrations(
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
+    response: FastAPIResponse = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[IntegrationConnection]:
-    return page_query(scoped_query(db, IntegrationConnection, current_user).order_by(IntegrationConnection.name), limit, offset).all()
+    return page_query(scoped_query(db, IntegrationConnection, current_user).order_by(IntegrationConnection.name), limit, offset, response).all()
 
 
 @router.post("/integrations", response_model=IntegrationConnectionRead, status_code=status.HTTP_201_CREATED)
@@ -906,10 +921,11 @@ def sync_integration(
 def list_sso_providers(
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
+    response: FastAPIResponse = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[SSOProvider]:
-    return page_query(scoped_query(db, SSOProvider, current_user).order_by(SSOProvider.name), limit, offset).all()
+    return page_query(scoped_query(db, SSOProvider, current_user).order_by(SSOProvider.name), limit, offset, response).all()
 
 
 @router.post("/sso-providers", response_model=SSOProviderRead, status_code=status.HTTP_201_CREATED)
@@ -983,10 +999,11 @@ def sso_callback(payload: SSOCallbackRequest, db: Session = Depends(get_db)) -> 
 def list_compliance_obligations(
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
+    response: FastAPIResponse = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[ComplianceObligation]:
-    return page_query(scoped_query(db, ComplianceObligation, current_user).order_by(ComplianceObligation.due_date.asc()), limit, offset).all()
+    return page_query(scoped_query(db, ComplianceObligation, current_user).order_by(ComplianceObligation.due_date.asc()), limit, offset, response).all()
 
 
 @router.post("/compliance-obligations", response_model=ComplianceObligationRead, status_code=status.HTTP_201_CREATED)
@@ -1025,10 +1042,11 @@ def update_compliance_obligation(
 def list_risks(
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
+    response: FastAPIResponse = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[Risk]:
-    return page_query(scoped_query(db, Risk, current_user).order_by(Risk.created_at.desc()), limit, offset).all()
+    return page_query(scoped_query(db, Risk, current_user).order_by(Risk.created_at.desc()), limit, offset, response).all()
 
 
 @router.post("/risks", response_model=RiskRead, status_code=status.HTTP_201_CREATED)

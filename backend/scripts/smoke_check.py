@@ -86,6 +86,8 @@ def main() -> None:
         paged_policies.raise_for_status()
         if len(paged_policies.json()) != 1:
             raise AssertionError("Policy pagination limit was not honored")
+        if paged_policies.headers.get("X-Total-Count") != "9":
+            raise AssertionError("Policy pagination total count header was not returned")
 
         audit_filter = client.get("/api/audit-logs", params={"entity_type": "policy"}, headers=headers)
         audit_filter.raise_for_status()

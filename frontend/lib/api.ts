@@ -10,6 +10,11 @@ export class ApiError extends Error {
   }
 }
 
+export type ApiResponse<T> = {
+  data: T;
+  totalCount: number | null;
+};
+
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
   return window.localStorage.getItem("gmp_token");
@@ -45,6 +50,11 @@ function shouldClearSession(path: string): boolean {
 }
 
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const response = await apiRequestWithMeta<T>(path, options);
+  return response.data;
+}
+
+export async function apiRequestWithMeta<T>(path: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
   const headers = new Headers(options.headers);
   headers.set("Content-Type", "application/json");
   const token = getToken();
@@ -76,10 +86,20 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
   }
 
   if (response.status === 204) {
-    return undefined as T;
+    return { data: undefined as T, totalCount: null };
   }
 
-  return response.json() as Promise<T>;
+  return {
+    data: await response.json() as T,
+    totalCount: parseTotalCount(response),
+  };
+}
+
+function parseTotalCount(response: Response): number | null {
+  const rawTotal = response.headers.get("X-Total-Count");
+  if (!rawTotal) return null;
+  const total = Number(rawTotal);
+  return Number.isFinite(total) ? total : null;
 }
 
 export async function apiUpload<T>(path: string, formData: FormData): Promise<T> {

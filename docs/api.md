@@ -58,6 +58,28 @@ Base URL: `http://localhost:8000`
 - `POST /api/risks`
 - `PUT /api/risks/{risk_id}`
 
+## Pagination
+
+List endpoints accept bounded pagination query parameters:
+
+```text
+?limit=10&offset=0
+```
+
+Defaults:
+
+- `limit=100`
+- `offset=0`
+- maximum `limit=500`
+
+Paginated list responses keep the same JSON array body and include:
+
+```text
+X-Total-Count: <total rows visible to the current role and filters>
+```
+
+The frontend uses this header to show exact `Page X of Y` labels for high-growth tables such as Policies, Documents, Audit Logs, and Users.
+
 ## RBAC Defaults
 
 - Admin: full access, including user and department creation.
