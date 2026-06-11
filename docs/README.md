@@ -8,4 +8,6 @@
 - [Vercel + Render + Supabase deployment](deploy-vercel-render-supabase.md)
 - [Production smoke check](production-smoke-check.md)
 - [Production hardening](production-hardening.md)
+- [Monitoring runbook](monitoring.md)
+- [Production data policy](data-policy.md)
 - [Resume and interview notes](resume-and-interview.md)

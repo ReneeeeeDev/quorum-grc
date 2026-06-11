@@ -58,6 +58,7 @@ type PortalResource =
   | "complianceObligations"
   | "risks";
 type PortalRequest = { key: PortalResource; request: Promise<unknown> };
+type PortalResourceParams = Partial<Record<PortalResource, string>>;
 
 const allPortalResources: PortalResource[] = [
   "users",
@@ -98,6 +99,7 @@ const integrationResources: PortalResource[] = ["integrations", "tenants"];
 const ssoResources: PortalResource[] = ["ssoProviders", "tenants", "users"];
 const auditLogResources: PortalResource[] = ["auditLogs", "users"];
 const settingsResources: PortalResource[] = ["users", "departments"];
+const serverPageSize = 10;
 
 const emptyReportSummary: ReportSummary = {
   open_actions: 0,
@@ -242,6 +244,41 @@ function ReadOnlyPanel({ message = "Your role can view these records, but cannot
     <Panel title="Role access">
       <div className="rounded border border-dashed border-line bg-slate-50 px-4 py-5 text-sm text-muted">{message}</div>
     </Panel>
+  );
+}
+
+function ServerPager({
+  offset,
+  pageSize,
+  rows,
+  onOffsetChange,
+}: {
+  offset: number;
+  pageSize: number;
+  rows: unknown[];
+  onOffsetChange: (offset: number) => void;
+}) {
+  const currentPage = Math.floor(offset / pageSize) + 1;
+  return (
+    <div className="mt-4 flex items-center justify-end gap-2">
+      <button
+        type="button"
+        onClick={() => onOffsetChange(Math.max(0, offset - pageSize))}
+        disabled={offset === 0}
+        className="rounded border border-line px-3 py-1.5 text-xs font-semibold text-ink hover:bg-slate-50 disabled:opacity-50"
+      >
+        Previous server page
+      </button>
+      <span className="text-xs text-muted">Server page {currentPage}</span>
+      <button
+        type="button"
+        onClick={() => onOffsetChange(offset + pageSize)}
+        disabled={rows.length < pageSize}
+        className="rounded border border-line px-3 py-1.5 text-xs font-semibold text-ink hover:bg-slate-50 disabled:opacity-50"
+      >
+        Next server page
+      </button>
+    </div>
   );
 }
 
@@ -442,8 +479,17 @@ function CompactForm({
   );
 }
 
-function usePortalData(resources: PortalResource[] = allPortalResources) {
+function paginatedParams(offset: number) {
+  return `limit=${serverPageSize}&offset=${offset}`;
+}
+
+function pathWithParams(path: string, params: string | undefined) {
+  return params ? `${path}?${params}` : path;
+}
+
+function usePortalData(resources: PortalResource[] = allPortalResources, resourceParams: PortalResourceParams = {}) {
   const resourceKey = resources.join("|");
+  const resourceParamsKey = JSON.stringify(resourceParams);
   const [state, setState] = useState<LoadState>("idle");
   const [error, setError] = useState<string | null>(null);
   const [users, setUsers] = useState<User[]>([]);
@@ -470,25 +516,26 @@ function usePortalData(resources: PortalResource[] = allPortalResources) {
     setError(null);
 
     const selectedResources = new Set(resourceKey.split("|").filter(Boolean) as PortalResource[]);
+    const params = JSON.parse(resourceParamsKey) as PortalResourceParams;
     const requestOptions: Array<PortalRequest | null> = [
-      selectedResources.has("users") ? { key: "users", request: apiRequest<User[]>("/api/users") } : null,
-      selectedResources.has("departments") ? { key: "departments", request: apiRequest<Department[]>("/api/departments") } : null,
-      selectedResources.has("policies") ? { key: "policies", request: apiRequest<Policy[]>("/api/policies") } : null,
-      selectedResources.has("meetings") ? { key: "meetings", request: apiRequest<Meeting[]>("/api/meetings") } : null,
-      selectedResources.has("decisions") ? { key: "decisions", request: apiRequest<Decision[]>("/api/decisions") } : null,
-      selectedResources.has("actions") ? { key: "actions", request: apiRequest<ActionItem[]>("/api/action-items") } : null,
+      selectedResources.has("users") ? { key: "users", request: apiRequest<User[]>(pathWithParams("/api/users", params.users)) } : null,
+      selectedResources.has("departments") ? { key: "departments", request: apiRequest<Department[]>(pathWithParams("/api/departments", params.departments)) } : null,
+      selectedResources.has("policies") ? { key: "policies", request: apiRequest<Policy[]>(pathWithParams("/api/policies", params.policies)) } : null,
+      selectedResources.has("meetings") ? { key: "meetings", request: apiRequest<Meeting[]>(pathWithParams("/api/meetings", params.meetings)) } : null,
+      selectedResources.has("decisions") ? { key: "decisions", request: apiRequest<Decision[]>(pathWithParams("/api/decisions", params.decisions)) } : null,
+      selectedResources.has("actions") ? { key: "actions", request: apiRequest<ActionItem[]>(pathWithParams("/api/action-items", params.actions)) } : null,
       selectedResources.has("reports") ? { key: "reports", request: apiRequest<ReportSummary>("/api/reports") } : null,
       selectedResources.has("reportBreakdown") ? { key: "reportBreakdown", request: apiRequest<ReportBreakdown>("/api/reports/breakdown") } : null,
-      selectedResources.has("auditLogs") ? { key: "auditLogs", request: apiRequest<AuditLog[]>("/api/audit-logs") } : null,
-      selectedResources.has("tenants") ? { key: "tenants", request: apiRequest<Tenant[]>("/api/tenants") } : null,
-      selectedResources.has("documents") ? { key: "documents", request: apiRequest<DocumentRecord[]>("/api/documents") } : null,
-      selectedResources.has("notifications") ? { key: "notifications", request: apiRequest<NotificationRecord[]>("/api/notifications") } : null,
-      selectedResources.has("calendarEvents") ? { key: "calendarEvents", request: apiRequest<CalendarEvent[]>("/api/calendar-events") } : null,
-      selectedResources.has("workflowSteps") ? { key: "workflowSteps", request: apiRequest<WorkflowStep[]>("/api/workflow-steps") } : null,
-      selectedResources.has("integrations") ? { key: "integrations", request: apiRequest<IntegrationConnection[]>("/api/integrations") } : null,
-      selectedResources.has("ssoProviders") ? { key: "ssoProviders", request: apiRequest<SSOProvider[]>("/api/sso-providers") } : null,
-      selectedResources.has("complianceObligations") ? { key: "complianceObligations", request: apiRequest<ComplianceObligation[]>("/api/compliance-obligations") } : null,
-      selectedResources.has("risks") ? { key: "risks", request: apiRequest<Risk[]>("/api/risks") } : null,
+      selectedResources.has("auditLogs") ? { key: "auditLogs", request: apiRequest<AuditLog[]>(pathWithParams("/api/audit-logs", params.auditLogs)) } : null,
+      selectedResources.has("tenants") ? { key: "tenants", request: apiRequest<Tenant[]>(pathWithParams("/api/tenants", params.tenants)) } : null,
+      selectedResources.has("documents") ? { key: "documents", request: apiRequest<DocumentRecord[]>(pathWithParams("/api/documents", params.documents)) } : null,
+      selectedResources.has("notifications") ? { key: "notifications", request: apiRequest<NotificationRecord[]>(pathWithParams("/api/notifications", params.notifications)) } : null,
+      selectedResources.has("calendarEvents") ? { key: "calendarEvents", request: apiRequest<CalendarEvent[]>(pathWithParams("/api/calendar-events", params.calendarEvents)) } : null,
+      selectedResources.has("workflowSteps") ? { key: "workflowSteps", request: apiRequest<WorkflowStep[]>(pathWithParams("/api/workflow-steps", params.workflowSteps)) } : null,
+      selectedResources.has("integrations") ? { key: "integrations", request: apiRequest<IntegrationConnection[]>(pathWithParams("/api/integrations", params.integrations)) } : null,
+      selectedResources.has("ssoProviders") ? { key: "ssoProviders", request: apiRequest<SSOProvider[]>(pathWithParams("/api/sso-providers", params.ssoProviders)) } : null,
+      selectedResources.has("complianceObligations") ? { key: "complianceObligations", request: apiRequest<ComplianceObligation[]>(pathWithParams("/api/compliance-obligations", params.complianceObligations)) } : null,
+      selectedResources.has("risks") ? { key: "risks", request: apiRequest<Risk[]>(pathWithParams("/api/risks", params.risks)) } : null,
     ];
     const requests = requestOptions.filter((request): request is PortalRequest => request !== null);
 
@@ -528,7 +575,7 @@ function usePortalData(resources: PortalResource[] = allPortalResources) {
     if (selectedResources.has("complianceObligations")) setComplianceObligations(valueFor<ComplianceObligation[]>("complianceObligations", []));
     if (selectedResources.has("risks")) setRisks(valueFor<Risk[]>("risks", []));
     setState("ready");
-  }, [resourceKey]);
+  }, [resourceKey, resourceParamsKey]);
 
   useEffect(() => {
     void reload();
@@ -681,7 +728,8 @@ export function DashboardScreen() {
 }
 
 export function PoliciesScreen() {
-  const data = usePortalData(policyResources);
+  const [policyOffset, setPolicyOffset] = useState(0);
+  const data = usePortalData(policyResources, { policies: paginatedParams(policyOffset) });
   const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
@@ -714,6 +762,7 @@ export function PoliciesScreen() {
               }] : []),
             ]}
           />
+          <ServerPager offset={policyOffset} pageSize={serverPageSize} rows={data.policies} onOffsetChange={setPolicyOffset} />
         </Panel>
         {permissions.canManageGovernance ? (
           <CompactForm
@@ -1024,7 +1073,8 @@ function DocumentUploadForm({ tenants, reload }: { tenants: Tenant[]; reload: ()
 }
 
 export function DocumentsScreen() {
-  const data = usePortalData(documentResources);
+  const [documentOffset, setDocumentOffset] = useState(0);
+  const data = usePortalData(documentResources, { documents: paginatedParams(documentOffset) });
   const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
@@ -1051,6 +1101,7 @@ export function DocumentsScreen() {
               },
             ]}
           />
+          <ServerPager offset={documentOffset} pageSize={serverPageSize} rows={data.documents} onOffsetChange={setDocumentOffset} />
         </Panel>
         {permissions.canUploadDocuments ? <DocumentUploadForm tenants={data.tenants} reload={data.reload} /> : <ReadOnlyPanel message="Your role can view and download visible documents, but cannot upload new evidence." />}
       </div>
@@ -1623,18 +1674,30 @@ export function SSOScreen() {
 }
 
 export function AuditLogsScreen() {
-  const data = usePortalData(auditLogResources);
+  const [auditOffset, setAuditOffset] = useState(0);
+  const data = usePortalData(auditLogResources, { auditLogs: paginatedParams(auditOffset) });
   const permissions = useRolePermissions();
   const [filters, setFilters] = useState({ action: "", entity_type: "", actor_id: "", date_from: "", date_to: "" });
   const [filteredLogs, setFilteredLogs] = useState<AuditLog[] | null>(null);
-  if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
+
+  function buildAuditPath(offset: number) {
+    const query = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) query.set(key, value);
+    });
+    query.set("limit", String(serverPageSize));
+    query.set("offset", String(offset));
+    return `/api/audit-logs${query.toString() ? `?${query.toString()}` : ""}`;
+  }
+
+  const hasAuditFilters = Object.values(filters).some(Boolean);
   const auditRows = filteredLogs ?? data.auditLogs;
-  const auditQuery = new URLSearchParams();
+  const exportQuery = new URLSearchParams();
   Object.entries(filters).forEach(([key, value]) => {
-    if (value) auditQuery.set(key, value);
+    if (value) exportQuery.set(key, value);
   });
-  const auditPath = `/api/audit-logs${auditQuery.toString() ? `?${auditQuery.toString()}` : ""}`;
-  const auditExportPath = `/api/audit-logs/export${auditQuery.toString() ? `?${auditQuery.toString()}` : ""}`;
+  const auditExportPath = `/api/audit-logs/export${exportQuery.toString() ? `?${exportQuery.toString()}` : ""}`;
+  if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
   return (
     <>
@@ -1642,22 +1705,25 @@ export function AuditLogsScreen() {
       {permissions.canAudit ? (
         <>
           <div className="mb-4 grid gap-3 rounded border border-line bg-panel p-4 md:grid-cols-6">
-            <input value={filters.action} onChange={(event) => setFilters((current) => ({ ...current, action: event.target.value }))} placeholder="Action" className="rounded border border-line px-3 py-2 text-sm outline-none focus:border-primary" />
-            <input value={filters.entity_type} onChange={(event) => setFilters((current) => ({ ...current, entity_type: event.target.value }))} placeholder="Entity type" className="rounded border border-line px-3 py-2 text-sm outline-none focus:border-primary" />
-            <select value={filters.actor_id} onChange={(event) => setFilters((current) => ({ ...current, actor_id: event.target.value }))} className="rounded border border-line bg-white px-3 py-2 text-sm outline-none focus:border-primary">
+            <input value={filters.action} onChange={(event) => { setAuditOffset(0); setFilters((current) => ({ ...current, action: event.target.value })); }} placeholder="Action" className="rounded border border-line px-3 py-2 text-sm outline-none focus:border-primary" />
+            <input value={filters.entity_type} onChange={(event) => { setAuditOffset(0); setFilters((current) => ({ ...current, entity_type: event.target.value })); }} placeholder="Entity type" className="rounded border border-line px-3 py-2 text-sm outline-none focus:border-primary" />
+            <select value={filters.actor_id} onChange={(event) => { setAuditOffset(0); setFilters((current) => ({ ...current, actor_id: event.target.value })); }} className="rounded border border-line bg-white px-3 py-2 text-sm outline-none focus:border-primary">
               <option value="">All actors</option>
               {data.users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}
             </select>
-            <input value={filters.date_from} onChange={(event) => setFilters((current) => ({ ...current, date_from: event.target.value }))} type="date" className="rounded border border-line px-3 py-2 text-sm outline-none focus:border-primary" />
-            <input value={filters.date_to} onChange={(event) => setFilters((current) => ({ ...current, date_to: event.target.value }))} type="date" className="rounded border border-line px-3 py-2 text-sm outline-none focus:border-primary" />
+            <input value={filters.date_from} onChange={(event) => { setAuditOffset(0); setFilters((current) => ({ ...current, date_from: event.target.value })); }} type="date" className="rounded border border-line px-3 py-2 text-sm outline-none focus:border-primary" />
+            <input value={filters.date_to} onChange={(event) => { setAuditOffset(0); setFilters((current) => ({ ...current, date_to: event.target.value })); }} type="date" className="rounded border border-line px-3 py-2 text-sm outline-none focus:border-primary" />
             <div className="flex gap-2">
               <button
                 className="rounded bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-teal-800"
-                onClick={async () => setFilteredLogs(await apiRequest<AuditLog[]>(auditPath))}
+                onClick={async () => {
+                  setAuditOffset(0);
+                  setFilteredLogs(await apiRequest<AuditLog[]>(buildAuditPath(0)));
+                }}
               >
                 Apply
               </button>
-              <button className="rounded border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-slate-50" onClick={() => { setFilters({ action: "", entity_type: "", actor_id: "", date_from: "", date_to: "" }); setFilteredLogs(null); }}>
+              <button className="rounded border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-slate-50" onClick={() => { setAuditOffset(0); setFilters({ action: "", entity_type: "", actor_id: "", date_from: "", date_to: "" }); setFilteredLogs(null); }}>
                 Reset
               </button>
             </div>
@@ -1680,13 +1746,27 @@ export function AuditLogsScreen() {
             { header: "Created", cell: (row) => new Date(row.created_at).toLocaleString() },
           ]}
         />
+        <ServerPager
+          offset={auditOffset}
+          pageSize={serverPageSize}
+          rows={auditRows}
+          onOffsetChange={async (nextOffset) => {
+            setAuditOffset(nextOffset);
+            if (hasAuditFilters) {
+              setFilteredLogs(await apiRequest<AuditLog[]>(buildAuditPath(nextOffset)));
+            } else {
+              setFilteredLogs(null);
+            }
+          }}
+        />
       </Panel>
     </>
   );
 }
 
 export function SettingsScreen() {
-  const data = usePortalData(settingsResources);
+  const [userOffset, setUserOffset] = useState(0);
+  const data = usePortalData(settingsResources, { users: paginatedParams(userOffset) });
   const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
@@ -1704,6 +1784,7 @@ export function SettingsScreen() {
               { header: "Department", cell: (row) => data.departments.find((department) => department.id === row.department_id)?.name ?? "Unassigned" },
             ]}
           />
+          <ServerPager offset={userOffset} pageSize={serverPageSize} rows={data.users} onOffsetChange={setUserOffset} />
         </Panel>
         {permissions.canManageAdmin ? (
           <CompactForm

@@ -37,6 +37,8 @@ try {
   await checkFrontendRoutes();
   const token = await checkLogin();
   await checkAuthenticatedApis(token);
+  await checkPagination(token);
+  await checkLogout(token);
   await checkCorsPreflight();
 } catch (error) {
   record("production smoke runner", false, error.message);
@@ -92,6 +94,24 @@ async function checkAuthenticatedApis(token) {
     });
     record(`api ${route}`, response.ok, `${response.status}`);
   }
+}
+
+async function checkPagination(token) {
+  const response = await request(`${backendUrl}/api/policies?limit=1&offset=0`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  record("api pagination /api/policies", response.ok, `${response.status}`);
+  if (!response.ok) return;
+  const body = await response.json();
+  record("api pagination limit honored", Array.isArray(body) && body.length <= 1, `rows ${Array.isArray(body) ? body.length : "invalid"}`);
+}
+
+async function checkLogout(token) {
+  const response = await request(`${backendUrl}/api/auth/logout`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  record("auth logout", response.ok, `${response.status}`);
 }
 
 async function checkCorsPreflight() {

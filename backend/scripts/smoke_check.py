@@ -82,6 +82,11 @@ def main() -> None:
         if "summary,open_actions,6" not in report_export.text:
             raise AssertionError("Report export did not include summary KPIs")
 
+        paged_policies = client.get("/api/policies", params={"limit": 1, "offset": 0}, headers=headers)
+        paged_policies.raise_for_status()
+        if len(paged_policies.json()) != 1:
+            raise AssertionError("Policy pagination limit was not honored")
+
         audit_filter = client.get("/api/audit-logs", params={"entity_type": "policy"}, headers=headers)
         audit_filter.raise_for_status()
         if not audit_filter.json() or any(row["entity_type"] != "policy" for row in audit_filter.json()):

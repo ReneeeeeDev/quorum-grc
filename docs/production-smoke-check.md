@@ -51,6 +51,8 @@ node scripts/production-smoke.mjs
   - `/audit-logs`
   - `/settings`
 - Auth login: `POST /api/auth/login`
+- Auth logout: `POST /api/auth/logout`
+- Pagination behavior: `GET /api/policies?limit=1&offset=0`
 - Authenticated API access:
   - `/api/auth/me`
   - `/api/reports`
@@ -60,6 +62,16 @@ node scripts/production-smoke.mjs
   - `/api/action-items`
   - `/api/audit-logs`
 - Browser CORS preflight from the production frontend origin.
+
+## Manual Role Checks
+
+After the automated smoke script passes, manually sign in as each active role and confirm:
+
+- Dashboard counts match visible rows for that role.
+- Auditor and Board Member do not see mutating controls.
+- Manager only sees assigned/owned work.
+- Audit Logs are visible only to Admin, Governance Officer, and Auditor.
+- Notifications show the same unread count as visible unread messages.
 
 ## Expected Result
 

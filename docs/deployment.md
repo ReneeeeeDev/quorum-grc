@@ -10,6 +10,8 @@ The project is deployable as an MVP with:
 - Alembic migrations applied by the backend container at startup.
 - Production env templates with demo seeding disabled by default.
 - Docker health checks for frontend and backend.
+- Bounded backend list APIs with `limit` and `offset`.
+- Frontend server-side pagination for high-growth tables.
 
 Before production launch, replace all placeholder secrets and test the selected platform with a real PostgreSQL database.
 
@@ -174,3 +176,4 @@ node scripts/production-smoke.mjs
 ```
 
 See [production-smoke-check.md](production-smoke-check.md) and [production-hardening.md](production-hardening.md).
+See [monitoring.md](monitoring.md) and [data-policy.md](data-policy.md) for operations and production data rules.

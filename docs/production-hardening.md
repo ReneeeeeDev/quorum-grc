@@ -10,6 +10,7 @@ These items are prepared for the later deployment pass. They do not require live
   - `GET /health/ready`
 - Alert if either endpoint fails for more than two consecutive checks.
 - Review failed auth attempts and repeated `429` responses during weekly operations review.
+- Use [Monitoring Runbook](monitoring.md) as the recurring operations checklist.
 
 ## Backups
 
@@ -30,6 +31,7 @@ These items are prepared for the later deployment pass. They do not require live
 - Keep `DEMO_SEED_ENABLED=false` for production.
 - Set `FRONTEND_ORIGIN` to the exact Vercel URL.
 - Keep API rate limiting enabled with `RATE_LIMIT_PER_MINUTE`.
+- Keep auth-specific rate limiting enabled with `AUTH_RATE_LIMIT_PER_MINUTE`.
 - Keep security headers enabled through backend middleware.
 - Restrict admin accounts to named users only.
 
@@ -65,3 +67,4 @@ Before calling the deployed app production-ready:
 3. Set production environment variables.
 4. Run `node scripts/production-smoke.mjs`.
 5. Confirm backup policy and uptime monitors are active.
+6. Confirm [Production Data Policy](data-policy.md) is followed for demo vs real data.

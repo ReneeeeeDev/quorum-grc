@@ -43,6 +43,9 @@ DATABASE_URL=<Supabase Postgres or session-pooler connection string>
 JWT_SECRET_KEY=<strong random secret>
 FRONTEND_ORIGIN=https://<your-vercel-domain>
 REDIS_URL=<optional Redis URL; use Upstash/Render Key Value if enabled later>
+DEMO_SEED_ENABLED=false
+RATE_LIMIT_PER_MINUTE=120
+AUTH_RATE_LIMIT_PER_MINUTE=20
 ```
 
 Recommended Render settings:
@@ -58,6 +61,7 @@ After deployment, verify:
 
 ```bash
 curl https://<your-render-backend>/health
+curl https://<your-render-backend>/health/ready
 ```
 
 ## 3. Vercel Frontend
@@ -102,6 +106,15 @@ admin@gmp.local / Admin@123
 5. Update Render `FRONTEND_ORIGIN` to the final Vercel URL.
 6. Redeploy Render backend so CORS uses the final frontend origin.
 7. Test login and dashboard.
+8. Run the production smoke script from the repository root:
+
+   ```bash
+   PRODUCTION_FRONTEND_URL=https://<your-vercel-domain> \
+   PRODUCTION_BACKEND_URL=https://<your-render-backend> \
+   SMOKE_EMAIL=<smoke-user-email> \
+   SMOKE_PASSWORD=<smoke-user-password> \
+   node scripts/production-smoke.mjs
+   ```
 
 ## 5. Production Checklist
 
@@ -112,3 +125,5 @@ admin@gmp.local / Admin@123
 - Vercel `NEXT_BACKEND_URL` points to Render.
 - Render `FRONTEND_ORIGIN` points to Vercel.
 - Do not commit live secrets.
+- Uptime checks are configured for `/health`, `/health/ready`, and `/login`.
+- Supabase backups are enabled before real production data is added.

@@ -88,6 +88,8 @@ npm run typecheck
 - [API reference](docs/api.md)
 - [Verification](docs/verification.md)
 - [Deployment](docs/deployment.md)
+- [Monitoring runbook](docs/monitoring.md)
+- [Production data policy](docs/data-policy.md)
 - [Resume and interview notes](docs/resume-and-interview.md)
 
 ## Completed MVP Modules
