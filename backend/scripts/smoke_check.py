@@ -40,7 +40,7 @@ def main() -> None:
             "/api/meetings": 5,
             "/api/decisions": 5,
             "/api/action-items": 7,
-            "/api/audit-logs": 7,
+            "/api/audit-logs": 8,
             "/api/documents": 5,
             "/api/calendar-events": 6,
             "/api/workflow-steps": 5,
@@ -86,6 +86,18 @@ def main() -> None:
         audit_filter.raise_for_status()
         if not audit_filter.json() or any(row["entity_type"] != "policy" for row in audit_filter.json()):
             raise AssertionError("Audit entity_type filter failed")
+
+        failed_login = client.post(
+            "/api/auth/login",
+            json={"email": "admin@gmp.local", "password": "WrongPassword@123"},
+        )
+        if failed_login.status_code != 401:
+            raise AssertionError(f"Failed login should return 401, got {failed_login.status_code}")
+        auth_audit = client.get("/api/audit-logs", params={"entity_type": "auth"}, headers=headers)
+        auth_audit.raise_for_status()
+        auth_actions = {row["action"] for row in auth_audit.json()}
+        if {"auth.login_success", "auth.login_failed"} - auth_actions:
+            raise AssertionError("Auth audit logs should include successful and failed login events")
 
         sso_start = client.get("/api/sso-providers/1/login")
         sso_start.raise_for_status()

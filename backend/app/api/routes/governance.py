@@ -167,6 +167,10 @@ def visible_notifications_query(db: Session, current_user: User):
     return query.filter(or_(Notification.user_id == current_user.id, Notification.user_id.is_(None)))
 
 
+def page_query(query, limit: int, offset: int = 0):
+    return query.offset(offset).limit(limit)
+
+
 def assert_entity_access(entity, current_user: User) -> None:
     if current_user.role == Role.ADMIN:
         return
@@ -203,11 +207,16 @@ def assert_write_access(entity, current_user: User) -> None:
 
 
 @router.get("/tenants", response_model=list[TenantRead])
-def list_tenants(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[Tenant]:
+def list_tenants(
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[Tenant]:
     query = db.query(Tenant)
     if current_user.role != Role.ADMIN:
         query = query.filter(Tenant.id == current_user.tenant_id)
-    return query.order_by(Tenant.name).all()
+    return page_query(query.order_by(Tenant.name), limit, offset).all()
 
 
 @router.post("/tenants", response_model=TenantRead, status_code=status.HTTP_201_CREATED)
@@ -226,8 +235,13 @@ def create_tenant(
 
 
 @router.get("/departments", response_model=list[DepartmentRead])
-def list_departments(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[Department]:
-    return scoped_query(db, Department, current_user).order_by(Department.name).all()
+def list_departments(
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[Department]:
+    return page_query(scoped_query(db, Department, current_user).order_by(Department.name), limit, offset).all()
 
 
 @router.post("/departments", response_model=DepartmentRead, status_code=status.HTTP_201_CREATED)
@@ -246,8 +260,13 @@ def create_department(
 
 
 @router.get("/users", response_model=list[UserRead])
-def list_users(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[User]:
-    return scoped_query(db, User, current_user).order_by(User.name).all()
+def list_users(
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[User]:
+    return page_query(scoped_query(db, User, current_user).order_by(User.name), limit, offset).all()
 
 
 @router.post("/users", response_model=UserRead, status_code=status.HTTP_201_CREATED)
@@ -269,8 +288,13 @@ def create_user(
 
 
 @router.get("/policies", response_model=list[PolicyRead])
-def list_policies(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[Policy]:
-    return scoped_query(db, Policy, current_user).order_by(Policy.updated_at.desc()).all()
+def list_policies(
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[Policy]:
+    return page_query(scoped_query(db, Policy, current_user).order_by(Policy.updated_at.desc()), limit, offset).all()
 
 
 @router.post("/policies", response_model=PolicyRead, status_code=status.HTTP_201_CREATED)
@@ -319,8 +343,13 @@ def delete_policy(
 
 
 @router.get("/meetings", response_model=list[MeetingRead])
-def list_meetings(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[Meeting]:
-    return scoped_query(db, Meeting, current_user).order_by(Meeting.meeting_date.desc()).all()
+def list_meetings(
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[Meeting]:
+    return page_query(scoped_query(db, Meeting, current_user).order_by(Meeting.meeting_date.desc()), limit, offset).all()
 
 
 @router.post("/meetings", response_model=MeetingRead, status_code=status.HTTP_201_CREATED)
@@ -339,8 +368,13 @@ def create_meeting(
 
 
 @router.get("/decisions", response_model=list[DecisionRead])
-def list_decisions(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[Decision]:
-    return scoped_query(db, Decision, current_user).order_by(Decision.decision_date.desc()).all()
+def list_decisions(
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[Decision]:
+    return page_query(scoped_query(db, Decision, current_user).order_by(Decision.decision_date.desc()), limit, offset).all()
 
 
 @router.post("/decisions", response_model=DecisionRead, status_code=status.HTTP_201_CREATED)
@@ -359,8 +393,13 @@ def create_decision(
 
 
 @router.get("/action-items", response_model=list[ActionItemRead])
-def list_action_items(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[ActionItem]:
-    return scoped_query(db, ActionItem, current_user).order_by(ActionItem.due_date.asc()).all()
+def list_action_items(
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[ActionItem]:
+    return page_query(scoped_query(db, ActionItem, current_user).order_by(ActionItem.due_date.asc()), limit, offset).all()
 
 
 @router.post("/action-items", response_model=ActionItemRead, status_code=status.HTTP_201_CREATED)
@@ -515,10 +554,12 @@ def list_audit_logs(
     actor_id: int | None = Query(None),
     date_from: date | None = Query(None),
     date_to: date | None = Query(None),
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[AuditLog]:
-    return audit_query(db, current_user, action, entity_type, actor_id, date_from, date_to).limit(100).all()
+    return page_query(audit_query(db, current_user, action, entity_type, actor_id, date_from, date_to), limit, offset).all()
 
 
 @router.get("/audit-logs/export")
@@ -538,8 +579,13 @@ def export_audit_logs(
 
 
 @router.get("/documents", response_model=list[DocumentRead])
-def list_documents(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[Document]:
-    return scoped_query(db, Document, current_user).order_by(Document.created_at.desc()).all()
+def list_documents(
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[Document]:
+    return page_query(scoped_query(db, Document, current_user).order_by(Document.created_at.desc()), limit, offset).all()
 
 
 @router.get("/documents/{document_id}/download", response_model=None)
@@ -637,11 +683,15 @@ async def upload_document(
 
 
 @router.get("/notifications", response_model=list[NotificationRead])
-def list_notifications(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[Notification]:
+def list_notifications(
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[Notification]:
     query = visible_notifications_query(db, current_user)
     return (
-        query
-        .order_by(Notification.created_at.desc())
+        page_query(query.order_by(Notification.created_at.desc()), limit, offset)
         .all()
     )
 
@@ -718,8 +768,13 @@ def dispatch_notification(
 
 
 @router.get("/calendar-events", response_model=list[CalendarEventRead])
-def list_calendar_events(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[CalendarEvent]:
-    return scoped_query(db, CalendarEvent, current_user).order_by(CalendarEvent.event_date.asc()).all()
+def list_calendar_events(
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[CalendarEvent]:
+    return page_query(scoped_query(db, CalendarEvent, current_user).order_by(CalendarEvent.event_date.asc()), limit, offset).all()
 
 
 @router.get("/calendar-events/export.ics")
@@ -759,8 +814,13 @@ def create_calendar_event(
 
 
 @router.get("/workflow-steps", response_model=list[WorkflowStepRead])
-def list_workflow_steps(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[WorkflowStep]:
-    return scoped_query(db, WorkflowStep, current_user).order_by(WorkflowStep.policy_id, WorkflowStep.sequence).all()
+def list_workflow_steps(
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[WorkflowStep]:
+    return page_query(scoped_query(db, WorkflowStep, current_user).order_by(WorkflowStep.policy_id, WorkflowStep.sequence), limit, offset).all()
 
 
 @router.post("/workflow-steps", response_model=WorkflowStepRead, status_code=status.HTTP_201_CREATED)
@@ -796,8 +856,13 @@ def update_workflow_step(
 
 
 @router.get("/integrations", response_model=list[IntegrationConnectionRead])
-def list_integrations(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[IntegrationConnection]:
-    return scoped_query(db, IntegrationConnection, current_user).order_by(IntegrationConnection.name).all()
+def list_integrations(
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[IntegrationConnection]:
+    return page_query(scoped_query(db, IntegrationConnection, current_user).order_by(IntegrationConnection.name), limit, offset).all()
 
 
 @router.post("/integrations", response_model=IntegrationConnectionRead, status_code=status.HTTP_201_CREATED)
@@ -838,8 +903,13 @@ def sync_integration(
 
 
 @router.get("/sso-providers", response_model=list[SSOProviderRead])
-def list_sso_providers(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[SSOProvider]:
-    return scoped_query(db, SSOProvider, current_user).order_by(SSOProvider.name).all()
+def list_sso_providers(
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[SSOProvider]:
+    return page_query(scoped_query(db, SSOProvider, current_user).order_by(SSOProvider.name), limit, offset).all()
 
 
 @router.post("/sso-providers", response_model=SSOProviderRead, status_code=status.HTTP_201_CREATED)
@@ -910,8 +980,13 @@ def sso_callback(payload: SSOCallbackRequest, db: Session = Depends(get_db)) -> 
 
 
 @router.get("/compliance-obligations", response_model=list[ComplianceObligationRead])
-def list_compliance_obligations(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[ComplianceObligation]:
-    return scoped_query(db, ComplianceObligation, current_user).order_by(ComplianceObligation.due_date.asc()).all()
+def list_compliance_obligations(
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[ComplianceObligation]:
+    return page_query(scoped_query(db, ComplianceObligation, current_user).order_by(ComplianceObligation.due_date.asc()), limit, offset).all()
 
 
 @router.post("/compliance-obligations", response_model=ComplianceObligationRead, status_code=status.HTTP_201_CREATED)
@@ -947,8 +1022,13 @@ def update_compliance_obligation(
 
 
 @router.get("/risks", response_model=list[RiskRead])
-def list_risks(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[Risk]:
-    return scoped_query(db, Risk, current_user).order_by(Risk.created_at.desc()).all()
+def list_risks(
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[Risk]:
+    return page_query(scoped_query(db, Risk, current_user).order_by(Risk.created_at.desc()), limit, offset).all()
 
 
 @router.post("/risks", response_model=RiskRead, status_code=status.HTTP_201_CREATED)

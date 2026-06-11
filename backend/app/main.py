@@ -46,14 +46,16 @@ def security_headers() -> dict[str, str]:
 @app.middleware("http")
 async def security_and_rate_limit_middleware(request: Request, call_next):
     client_host = request.client.host if request.client else "unknown"
+    bucket_key = f"{client_host}:{request.url.path}"
+    request_limit = settings.auth_rate_limit_per_minute if request.url.path == "/api/auth/login" else settings.rate_limit_per_minute
     now = monotonic()
-    window_start, request_count = rate_limit_buckets.get(client_host, (now, 0))
+    window_start, request_count = rate_limit_buckets.get(bucket_key, (now, 0))
     if now - window_start >= rate_limit_window_seconds:
         window_start, request_count = now, 0
     request_count += 1
-    rate_limit_buckets[client_host] = (window_start, request_count)
+    rate_limit_buckets[bucket_key] = (window_start, request_count)
 
-    if request_count > settings.rate_limit_per_minute:
+    if request_count > request_limit:
         return JSONResponse(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             content={"detail": "Too many requests"},

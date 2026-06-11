@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     sso_enabled: bool = False
     demo_seed_enabled: bool = True
     rate_limit_per_minute: int = 120
+    auth_rate_limit_per_minute: int = 20
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

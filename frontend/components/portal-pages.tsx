@@ -38,6 +38,66 @@ type Field = {
 };
 
 type LoadState = "idle" | "loading" | "ready" | "error";
+type PortalResource =
+  | "users"
+  | "departments"
+  | "policies"
+  | "meetings"
+  | "decisions"
+  | "actions"
+  | "reports"
+  | "reportBreakdown"
+  | "auditLogs"
+  | "tenants"
+  | "documents"
+  | "notifications"
+  | "calendarEvents"
+  | "workflowSteps"
+  | "integrations"
+  | "ssoProviders"
+  | "complianceObligations"
+  | "risks";
+type PortalRequest = { key: PortalResource; request: Promise<unknown> };
+
+const allPortalResources: PortalResource[] = [
+  "users",
+  "departments",
+  "policies",
+  "meetings",
+  "decisions",
+  "actions",
+  "reports",
+  "reportBreakdown",
+  "auditLogs",
+  "tenants",
+  "documents",
+  "notifications",
+  "calendarEvents",
+  "workflowSteps",
+  "integrations",
+  "ssoProviders",
+  "complianceObligations",
+  "risks",
+];
+
+const dashboardResources: PortalResource[] = ["actions", "reports", "reportBreakdown", "auditLogs"];
+const policyResources: PortalResource[] = ["policies", "users"];
+const departmentResources: PortalResource[] = ["departments", "users"];
+const meetingResources: PortalResource[] = ["meetings", "departments"];
+const decisionResources: PortalResource[] = ["decisions", "meetings", "users"];
+const actionResources: PortalResource[] = ["actions", "users", "decisions"];
+const documentResources: PortalResource[] = ["documents", "tenants"];
+const notificationResources: PortalResource[] = ["notifications", "users"];
+const calendarResources: PortalResource[] = ["calendarEvents", "users"];
+const workflowResources: PortalResource[] = ["workflowSteps", "policies", "users"];
+const complianceResources: PortalResource[] = ["complianceObligations", "tenants", "users"];
+const riskResources: PortalResource[] = ["risks", "tenants", "users"];
+const reportResources: PortalResource[] = ["reports", "reportBreakdown"];
+const tenantResources: PortalResource[] = ["tenants"];
+const integrationResources: PortalResource[] = ["integrations", "tenants"];
+const ssoResources: PortalResource[] = ["ssoProviders", "tenants", "users"];
+const auditLogResources: PortalResource[] = ["auditLogs", "users"];
+const settingsResources: PortalResource[] = ["users", "departments"];
 
 const emptyReportSummary: ReportSummary = {
   open_actions: 0,
@@ -382,7 +442,8 @@ function CompactForm({
   );
 }
 
-function usePortalData() {
+function usePortalData(resources: PortalResource[] = allPortalResources) {
+  const resourceKey = resources.join("|");
   const [state, setState] = useState<LoadState>("idle");
   const [error, setError] = useState<string | null>(null);
   const [users, setUsers] = useState<User[]>([]);
@@ -408,28 +469,30 @@ function usePortalData() {
     setState("loading");
     setError(null);
 
-    const requests = [
-      apiRequest<User[]>("/api/users"),
-      apiRequest<Department[]>("/api/departments"),
-      apiRequest<Policy[]>("/api/policies"),
-      apiRequest<Meeting[]>("/api/meetings"),
-      apiRequest<Decision[]>("/api/decisions"),
-      apiRequest<ActionItem[]>("/api/action-items"),
-      apiRequest<ReportSummary>("/api/reports"),
-      apiRequest<ReportBreakdown>("/api/reports/breakdown"),
-      apiRequest<AuditLog[]>("/api/audit-logs"),
-      apiRequest<Tenant[]>("/api/tenants"),
-      apiRequest<DocumentRecord[]>("/api/documents"),
-      apiRequest<NotificationRecord[]>("/api/notifications"),
-      apiRequest<CalendarEvent[]>("/api/calendar-events"),
-      apiRequest<WorkflowStep[]>("/api/workflow-steps"),
-      apiRequest<IntegrationConnection[]>("/api/integrations"),
-      apiRequest<SSOProvider[]>("/api/sso-providers"),
-      apiRequest<ComplianceObligation[]>("/api/compliance-obligations"),
-      apiRequest<Risk[]>("/api/risks"),
-    ] as const;
+    const selectedResources = new Set(resourceKey.split("|").filter(Boolean) as PortalResource[]);
+    const requestOptions: Array<PortalRequest | null> = [
+      selectedResources.has("users") ? { key: "users", request: apiRequest<User[]>("/api/users") } : null,
+      selectedResources.has("departments") ? { key: "departments", request: apiRequest<Department[]>("/api/departments") } : null,
+      selectedResources.has("policies") ? { key: "policies", request: apiRequest<Policy[]>("/api/policies") } : null,
+      selectedResources.has("meetings") ? { key: "meetings", request: apiRequest<Meeting[]>("/api/meetings") } : null,
+      selectedResources.has("decisions") ? { key: "decisions", request: apiRequest<Decision[]>("/api/decisions") } : null,
+      selectedResources.has("actions") ? { key: "actions", request: apiRequest<ActionItem[]>("/api/action-items") } : null,
+      selectedResources.has("reports") ? { key: "reports", request: apiRequest<ReportSummary>("/api/reports") } : null,
+      selectedResources.has("reportBreakdown") ? { key: "reportBreakdown", request: apiRequest<ReportBreakdown>("/api/reports/breakdown") } : null,
+      selectedResources.has("auditLogs") ? { key: "auditLogs", request: apiRequest<AuditLog[]>("/api/audit-logs") } : null,
+      selectedResources.has("tenants") ? { key: "tenants", request: apiRequest<Tenant[]>("/api/tenants") } : null,
+      selectedResources.has("documents") ? { key: "documents", request: apiRequest<DocumentRecord[]>("/api/documents") } : null,
+      selectedResources.has("notifications") ? { key: "notifications", request: apiRequest<NotificationRecord[]>("/api/notifications") } : null,
+      selectedResources.has("calendarEvents") ? { key: "calendarEvents", request: apiRequest<CalendarEvent[]>("/api/calendar-events") } : null,
+      selectedResources.has("workflowSteps") ? { key: "workflowSteps", request: apiRequest<WorkflowStep[]>("/api/workflow-steps") } : null,
+      selectedResources.has("integrations") ? { key: "integrations", request: apiRequest<IntegrationConnection[]>("/api/integrations") } : null,
+      selectedResources.has("ssoProviders") ? { key: "ssoProviders", request: apiRequest<SSOProvider[]>("/api/sso-providers") } : null,
+      selectedResources.has("complianceObligations") ? { key: "complianceObligations", request: apiRequest<ComplianceObligation[]>("/api/compliance-obligations") } : null,
+      selectedResources.has("risks") ? { key: "risks", request: apiRequest<Risk[]>("/api/risks") } : null,
+    ];
+    const requests = requestOptions.filter((request): request is PortalRequest => request !== null);
 
-    const results = await Promise.allSettled(requests);
+    const results = await Promise.allSettled(requests.map((entry) => entry.request));
     const failed = results.filter((result) => result.status === "rejected");
 
     if (failed.length === results.length) {
@@ -439,31 +502,33 @@ function usePortalData() {
       return;
     }
 
-    const valueAt = <T,>(index: number, fallback: T): T => {
+    const valueFor = <T,>(key: PortalResource, fallback: T): T => {
+      const index = requests.findIndex((entry) => entry.key === key);
+      if (index === -1) return fallback;
       const result = results[index];
-      return result.status === "fulfilled" ? (result.value as T) : fallback;
+      return result?.status === "fulfilled" ? (result.value as T) : fallback;
     };
 
-    setUsers(valueAt<User[]>(0, []));
-    setDepartments(valueAt<Department[]>(1, []));
-    setPolicies(valueAt<Policy[]>(2, []));
-    setMeetings(valueAt<Meeting[]>(3, []));
-    setDecisions(valueAt<Decision[]>(4, []));
-    setActions(valueAt<ActionItem[]>(5, []));
-    setReports(valueAt<ReportSummary>(6, emptyReportSummary));
-    setReportBreakdown(valueAt<ReportBreakdown>(7, emptyReportBreakdown));
-    setAuditLogs(valueAt<AuditLog[]>(8, []));
-    setTenants(valueAt<Tenant[]>(9, []));
-    setDocuments(valueAt<DocumentRecord[]>(10, []));
-    setNotifications(valueAt<NotificationRecord[]>(11, []));
-    setCalendarEvents(valueAt<CalendarEvent[]>(12, []));
-    setWorkflowSteps(valueAt<WorkflowStep[]>(13, []));
-    setIntegrations(valueAt<IntegrationConnection[]>(14, []));
-    setSsoProviders(valueAt<SSOProvider[]>(15, []));
-    setComplianceObligations(valueAt<ComplianceObligation[]>(16, []));
-    setRisks(valueAt<Risk[]>(17, []));
+    if (selectedResources.has("users")) setUsers(valueFor<User[]>("users", []));
+    if (selectedResources.has("departments")) setDepartments(valueFor<Department[]>("departments", []));
+    if (selectedResources.has("policies")) setPolicies(valueFor<Policy[]>("policies", []));
+    if (selectedResources.has("meetings")) setMeetings(valueFor<Meeting[]>("meetings", []));
+    if (selectedResources.has("decisions")) setDecisions(valueFor<Decision[]>("decisions", []));
+    if (selectedResources.has("actions")) setActions(valueFor<ActionItem[]>("actions", []));
+    if (selectedResources.has("reports")) setReports(valueFor<ReportSummary>("reports", emptyReportSummary));
+    if (selectedResources.has("reportBreakdown")) setReportBreakdown(valueFor<ReportBreakdown>("reportBreakdown", emptyReportBreakdown));
+    if (selectedResources.has("auditLogs")) setAuditLogs(valueFor<AuditLog[]>("auditLogs", []));
+    if (selectedResources.has("tenants")) setTenants(valueFor<Tenant[]>("tenants", []));
+    if (selectedResources.has("documents")) setDocuments(valueFor<DocumentRecord[]>("documents", []));
+    if (selectedResources.has("notifications")) setNotifications(valueFor<NotificationRecord[]>("notifications", []));
+    if (selectedResources.has("calendarEvents")) setCalendarEvents(valueFor<CalendarEvent[]>("calendarEvents", []));
+    if (selectedResources.has("workflowSteps")) setWorkflowSteps(valueFor<WorkflowStep[]>("workflowSteps", []));
+    if (selectedResources.has("integrations")) setIntegrations(valueFor<IntegrationConnection[]>("integrations", []));
+    if (selectedResources.has("ssoProviders")) setSsoProviders(valueFor<SSOProvider[]>("ssoProviders", []));
+    if (selectedResources.has("complianceObligations")) setComplianceObligations(valueFor<ComplianceObligation[]>("complianceObligations", []));
+    if (selectedResources.has("risks")) setRisks(valueFor<Risk[]>("risks", []));
     setState("ready");
-  }, []);
+  }, [resourceKey]);
 
   useEffect(() => {
     void reload();
@@ -544,7 +609,7 @@ async function downloadApiFile(path: string, filename: string) {
 }
 
 export function DashboardScreen() {
-  const data = usePortalData();
+  const data = usePortalData(dashboardResources);
 
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
@@ -616,7 +681,7 @@ export function DashboardScreen() {
 }
 
 export function PoliciesScreen() {
-  const data = usePortalData();
+  const data = usePortalData(policyResources);
   const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
@@ -674,7 +739,7 @@ export function PoliciesScreen() {
 }
 
 export function DepartmentsScreen() {
-  const data = usePortalData();
+  const data = usePortalData(departmentResources);
   const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
@@ -716,7 +781,7 @@ export function DepartmentsScreen() {
 }
 
 export function MeetingsScreen() {
-  const data = usePortalData();
+  const data = usePortalData(meetingResources);
   const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
@@ -761,7 +826,7 @@ export function MeetingsScreen() {
 }
 
 export function DecisionsScreen() {
-  const data = usePortalData();
+  const data = usePortalData(decisionResources);
   const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
@@ -811,7 +876,7 @@ export function DecisionsScreen() {
 }
 
 export function ActionsScreen() {
-  const data = usePortalData();
+  const data = usePortalData(actionResources);
   const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
@@ -959,7 +1024,7 @@ function DocumentUploadForm({ tenants, reload }: { tenants: Tenant[]; reload: ()
 }
 
 export function DocumentsScreen() {
-  const data = usePortalData();
+  const data = usePortalData(documentResources);
   const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
@@ -994,7 +1059,7 @@ export function DocumentsScreen() {
 }
 
 export function NotificationsScreen() {
-  const data = usePortalData();
+  const data = usePortalData(notificationResources);
   const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
@@ -1065,7 +1130,7 @@ export function NotificationsScreen() {
 }
 
 export function CalendarScreen() {
-  const data = usePortalData();
+  const data = usePortalData(calendarResources);
   const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
@@ -1116,7 +1181,7 @@ export function CalendarScreen() {
 }
 
 export function WorkflowsScreen() {
-  const data = usePortalData();
+  const data = usePortalData(workflowResources);
   const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
@@ -1180,7 +1245,7 @@ export function WorkflowsScreen() {
 }
 
 export function ComplianceScreen() {
-  const data = usePortalData();
+  const data = usePortalData(complianceResources);
   const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
@@ -1251,7 +1316,7 @@ export function ComplianceScreen() {
 }
 
 export function RisksScreen() {
-  const data = usePortalData();
+  const data = usePortalData(riskResources);
   const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
@@ -1321,7 +1386,7 @@ export function RisksScreen() {
 }
 
 export function ReportsScreen() {
-  const data = usePortalData();
+  const data = usePortalData(reportResources);
   const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
@@ -1376,7 +1441,7 @@ export function ReportsScreen() {
 }
 
 export function TenantsScreen() {
-  const data = usePortalData();
+  const data = usePortalData(tenantResources);
   const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
@@ -1416,7 +1481,7 @@ export function TenantsScreen() {
 }
 
 export function IntegrationsScreen() {
-  const data = usePortalData();
+  const data = usePortalData(integrationResources);
   const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
@@ -1476,7 +1541,7 @@ export function IntegrationsScreen() {
 }
 
 export function SSOScreen() {
-  const data = usePortalData();
+  const data = usePortalData(ssoResources);
   const permissions = useRolePermissions();
   const [ssoMessage, setSsoMessage] = useState<string | null>(null);
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
@@ -1558,7 +1623,7 @@ export function SSOScreen() {
 }
 
 export function AuditLogsScreen() {
-  const data = usePortalData();
+  const data = usePortalData(auditLogResources);
   const permissions = useRolePermissions();
   const [filters, setFilters] = useState({ action: "", entity_type: "", actor_id: "", date_from: "", date_to: "" });
   const [filteredLogs, setFilteredLogs] = useState<AuditLog[] | null>(null);
@@ -1621,7 +1686,7 @@ export function AuditLogsScreen() {
 }
 
 export function SettingsScreen() {
-  const data = usePortalData();
+  const data = usePortalData(settingsResources);
   const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 

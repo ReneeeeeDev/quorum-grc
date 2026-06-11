@@ -24,6 +24,22 @@ export function setToken(token: string | null): void {
   }
 }
 
+function tokenIsExpired(token: string): boolean {
+  try {
+    const payloadPart = token.split(".")[1];
+    if (!payloadPart) return true;
+    const payload = JSON.parse(window.atob(payloadPart.replace(/-/g, "+").replace(/_/g, "/"))) as { exp?: number };
+    return typeof payload.exp === "number" && payload.exp * 1000 <= Date.now();
+  } catch {
+    return true;
+  }
+}
+
+function clearExpiredSession(): void {
+  setToken(null);
+  window.dispatchEvent(new CustomEvent("gmp:unauthorized"));
+}
+
 function shouldClearSession(path: string): boolean {
   return path === "/api/auth/me";
 }
@@ -32,7 +48,13 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
   const headers = new Headers(options.headers);
   headers.set("Content-Type", "application/json");
   const token = getToken();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
+  if (token) {
+    if (typeof window !== "undefined" && tokenIsExpired(token)) {
+      clearExpiredSession();
+      throw new ApiError("Session expired", 401);
+    }
+    headers.set("Authorization", `Bearer ${token}`);
+  }
 
   let response: Response;
   try {
@@ -63,7 +85,13 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
 export async function apiUpload<T>(path: string, formData: FormData): Promise<T> {
   const headers = new Headers();
   const token = getToken();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
+  if (token) {
+    if (typeof window !== "undefined" && tokenIsExpired(token)) {
+      clearExpiredSession();
+      throw new ApiError("Session expired", 401);
+    }
+    headers.set("Authorization", `Bearer ${token}`);
+  }
 
   let response: Response;
   try {

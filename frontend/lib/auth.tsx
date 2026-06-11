@@ -70,6 +70,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(() => {
+    if (getToken()) {
+      void apiRequest("/api/auth/logout", { method: "POST" }).catch(() => undefined);
+    }
     setToken(null);
     setUser(null);
     router.push("/login");

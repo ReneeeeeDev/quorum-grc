@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 from secrets import token_urlsafe
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
@@ -10,22 +10,47 @@ from app.core.database import get_db
 from app.core.security import create_access_token, get_password_hash, verify_password
 from app.models import PasswordResetToken, User
 from app.schemas import LoginRequest, PasswordResetConfirm, PasswordResetRequest, TokenResponse, UserRead
+from app.services.audit import record_audit_log
 
 
 router = APIRouter(prefix="/api/auth", tags=["authentication"])
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
+def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)) -> TokenResponse:
     user = db.query(User).filter(User.email == payload.email).first()
     if user is None or not verify_password(payload.password, user.hashed_password):
+        record_audit_log(
+            db,
+            action="auth.login_failed",
+            entity_type="auth",
+            actor_id=user.id if user else None,
+            details=f"email={payload.email}; ip={request.client.host if request.client else 'unknown'}",
+        )
+        db.commit()
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
     token = create_access_token(user.email, {"role": user.role})
+    record_audit_log(
+        db,
+        action="auth.login_success",
+        entity_type="auth",
+        actor_id=user.id,
+        details=f"ip={request.client.host if request.client else 'unknown'}",
+    )
+    db.commit()
     return TokenResponse(access_token=token)
 
 
 @router.post("/logout")
-def logout() -> dict[str, str]:
+def logout(request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict[str, str]:
+    record_audit_log(
+        db,
+        action="auth.logout",
+        entity_type="auth",
+        actor_id=current_user.id,
+        details=f"ip={request.client.host if request.client else 'unknown'}",
+    )
+    db.commit()
     return {"status": "ok", "message": "Client token discarded"}
 
 
