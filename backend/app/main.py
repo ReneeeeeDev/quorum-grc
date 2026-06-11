@@ -81,7 +81,8 @@ async def security_and_rate_limit_middleware(request: Request, call_next):
     response.headers["X-Request-ID"] = request_id
     return response
 
-allowed_origins = sorted({settings.frontend_origin, "http://localhost:3000", "http://127.0.0.1:3000"})
+frontend_origin = settings.frontend_origin.rstrip("/")
+allowed_origins = sorted({frontend_origin, settings.frontend_origin, "http://localhost:3000", "http://127.0.0.1:3000"})
 
 app.add_middleware(
     CORSMiddleware,
