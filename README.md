@@ -81,6 +81,32 @@ cd ../frontend
 npm run typecheck
 ```
 
+For seeded demo role checks against a running backend:
+
+```bash
+ROLE_QA_BACKEND_URL=http://127.0.0.1:8000 node scripts/role-qa.mjs
+```
+
+For deployed demo role checks:
+
+```bash
+ROLE_QA_BACKEND_URL=https://governance-management-portal.onrender.com node scripts/role-qa.mjs
+```
+
+## Demo and Screenshots
+
+Use the [demo script](docs/demo-script.md) for a 5-minute walkthrough. Capture product screenshots into `docs/screenshots/` after the latest Render and Vercel deployments.
+
+Recommended screenshot set:
+
+- Dashboard KPIs
+- Policy lifecycle with pagination
+- Action item tracker
+- Notifications
+- Audit logs with filters
+- Auditor read-only view
+- Board Member view
+
 ## Documentation
 
 - [Product brief](docs/product-brief.md)
@@ -90,6 +116,8 @@ npm run typecheck
 - [Deployment](docs/deployment.md)
 - [Monitoring runbook](docs/monitoring.md)
 - [Production data policy](docs/data-policy.md)
+- [Demo script](docs/demo-script.md)
+- [Known limitations](docs/known-limitations.md)
 - [Resume and interview notes](docs/resume-and-interview.md)
 
 ## Completed MVP Modules

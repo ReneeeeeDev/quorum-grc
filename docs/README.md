@@ -10,4 +10,6 @@
 - [Production hardening](production-hardening.md)
 - [Monitoring runbook](monitoring.md)
 - [Production data policy](data-policy.md)
+- [Demo script](demo-script.md)
+- [Known limitations and future scope](known-limitations.md)
 - [Resume and interview notes](resume-and-interview.md)

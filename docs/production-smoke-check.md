@@ -73,6 +73,14 @@ After the automated smoke script passes, manually sign in as each active role an
 - Audit Logs are visible only to Admin, Governance Officer, and Auditor.
 - Notifications show the same unread count as visible unread messages.
 
+For seeded demo deployments, run automated role QA:
+
+```bash
+ROLE_QA_BACKEND_URL=https://governance-management-portal.onrender.com node scripts/role-qa.mjs
+```
+
+This script logs in as the seeded Admin, Governance Officer, Manager, Auditor, Board Member, and Public Auditor users. It validates role-scoped reads, read-only write blocking, notification count alignment, and pagination metadata.
+
 ## Expected Result
 
 Every line should print `PASS`, followed by:
