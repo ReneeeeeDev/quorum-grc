@@ -7,7 +7,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const requireFromFrontend = createRequire(path.join(root, "frontend", "package.json"));
 const { chromium } = requireFromFrontend("playwright");
 const baseUrl = normalizeUrl(process.env.SCREENSHOT_FRONTEND_URL ?? "https://governance-management-portal-4g7p.vercel.app");
-const outDir = path.join(root, "docs", "screenshots", "linkedin");
+const outDir = path.join(root, "screenshots");
 
 const users = {
   admin: { label: "Admin", email: "admin@gmp.local", password: "Admin@123" },
@@ -110,7 +110,7 @@ try {
   await browser.close();
 }
 
-console.log(`Captured ${captured.length} screenshots in docs/screenshots/linkedin:`);
+console.log(`Captured ${captured.length} screenshots in screenshots/:`);
 for (const file of captured) console.log(`- ${file}`);
 
 async function login(page, user) {
