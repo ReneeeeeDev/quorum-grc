@@ -145,11 +145,15 @@ function assertSecurityHeaders(name, response) {
 }
 
 async function request(url, options = {}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20000);
   try {
-    return await fetch(url, options);
+    return await fetch(url, { ...options, signal: controller.signal });
   } catch (error) {
     record(url, false, error.message);
     return new Response(null, { status: 599 });
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
