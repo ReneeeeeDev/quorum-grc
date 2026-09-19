@@ -5,11 +5,13 @@ import { useEffect } from "react";
 
 import { getToken } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n";
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, loading } = useAuth();
+  const { t } = useI18n();
   const hasStoredToken = Boolean(getToken());
 
   useEffect(() => {
@@ -21,7 +23,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   if (pathname === "/login") return <>{children}</>;
 
   if (loading) {
-    return <div className="flex min-h-screen items-center justify-center text-sm text-muted">Loading portal...</div>;
+    return <div className="flex min-h-screen items-center justify-center text-sm text-muted">{t("Loading portal...")}</div>;
   }
 
   if (!user && !hasStoredToken) return null;

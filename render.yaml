@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: governance-management-backend
+    name: quorum-grc-backend
     runtime: docker
     plan: free
     rootDir: backend

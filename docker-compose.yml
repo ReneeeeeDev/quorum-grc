@@ -2,9 +2,9 @@ services:
   backend:
     build:
       context: ./backend
-    container_name: governance-backend
+    container_name: quorum-backend
     environment:
-      DATABASE_URL: postgresql+psycopg://governance:governance@postgres:5432/governance_portal
+      DATABASE_URL: postgresql+psycopg://quorum:quorum@postgres:5432/quorum_grc
       REDIS_URL: redis://redis:6379/0
       JWT_SECRET_KEY: change-me-in-production
       FRONTEND_ORIGIN: http://localhost:3000
@@ -29,7 +29,7 @@ services:
   frontend:
     build:
       context: ./frontend
-    container_name: governance-frontend
+    container_name: quorum-frontend
     environment:
       NEXT_BACKEND_URL: http://backend:8000
     ports:
@@ -46,24 +46,24 @@ services:
 
   postgres:
     image: postgres:16-alpine
-    container_name: governance-postgres
+    container_name: quorum-postgres
     environment:
-      POSTGRES_USER: governance
-      POSTGRES_PASSWORD: governance
-      POSTGRES_DB: governance_portal
+      POSTGRES_USER: quorum
+      POSTGRES_PASSWORD: quorum
+      POSTGRES_DB: quorum_grc
     ports:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U governance -d governance_portal"]
+      test: ["CMD-SHELL", "pg_isready -U quorum -d quorum_grc"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   redis:
     image: redis:7-alpine
-    container_name: governance-redis
+    container_name: quorum-redis
     ports:
       - "6379:6379"
     healthcheck:

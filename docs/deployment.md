@@ -169,7 +169,7 @@ curl https://your-frontend.example.com/login
 Then sign in with the seeded demo admin only if `DEMO_SEED_ENABLED=true`:
 
 ```text
-admin@gmp.local / Admin@123
+admin@quorum.local / Admin@123
 ```
 
 For the full deployed smoke flow, set `PRODUCTION_FRONTEND_URL`, `PRODUCTION_BACKEND_URL`, `SMOKE_EMAIL`, and `SMOKE_PASSWORD`, then run:

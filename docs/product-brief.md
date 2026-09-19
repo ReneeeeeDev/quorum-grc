@@ -2,7 +2,7 @@
 
 ## Elevator Pitch
 
-The Governance Management Portal centralizes governance operations for organizations that currently rely on spreadsheets, shared drives, manual approvals, and email threads.
+Quorum GRC centralizes governance operations for organizations that currently rely on spreadsheets, shared drives, manual approvals, and email threads.
 
 It supports policy lifecycle management, committee governance, decision tracking, action management, compliance obligation monitoring, audit logging, and executive reporting.
 
@@ -40,10 +40,10 @@ It supports policy lifecycle management, committee governance, decision tracking
 
 | Role | Email | Password |
 | --- | --- | --- |
-| Admin | `admin@gmp.local` | `Admin@123` |
-| Governance Officer | `governance@gmp.local` | `Governance@123` |
-| Auditor | `auditor@gmp.local` | `Auditor@123` |
-| Board Member | `board@gmp.local` | `Board@123` |
+| Admin | `admin@quorum.local` | `Admin@123` |
+| Governance Officer | `governance@quorum.local` | `Governance@123` |
+| Auditor | `auditor@quorum.local` | `Auditor@123` |
+| Board Member | `board@quorum.local` | `Board@123` |
 
 ## Completed Pending Capabilities
 

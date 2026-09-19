@@ -9,8 +9,8 @@ Use this runbook after every Render and Vercel deployment.
 - Check these URLs:
 
 ```text
-GET https://governance-management-portal.onrender.com/health
-GET https://governance-management-portal.onrender.com/health/ready
+GET https://<your-backend>.onrender.com/health
+GET https://<your-backend>.onrender.com/health/ready
 ```
 
 Expected:
@@ -41,9 +41,9 @@ Expected:
 Create uptime checks for:
 
 ```text
-https://governance-management-portal.onrender.com/health
-https://governance-management-portal.onrender.com/health/ready
-https://governance-management-portal-4g7p.vercel.app/login
+https://<your-backend>.onrender.com/health
+https://<your-backend>.onrender.com/health/ready
+https://<your-frontend>.vercel.app/login
 ```
 
 Alert if any check fails two times in a row.

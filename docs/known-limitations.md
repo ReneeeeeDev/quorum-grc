@@ -73,6 +73,18 @@ Future scope:
 - Scheduled report delivery.
 - Export templates for board packs.
 
+## Localization
+
+- The UI ships in English, Spanish, and Portuguese; the language is detected from the browser and can be switched from the header.
+- Backend error messages, seeded demo data, and exported CSV/ICS content are English-only.
+- Dates use the browser `Intl` formatting for the selected language; there is no per-tenant locale or timezone setting.
+
+Future scope:
+
+- `Accept-Language` aware API error messages.
+- Locale-aware number and currency formatting if financial modules are added.
+- Right-to-left layout support.
+
 ## Multi-Tenancy
 
 - Tenant scoping is enforced in backend queries.

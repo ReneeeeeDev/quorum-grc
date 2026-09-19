@@ -9,4 +9,4 @@ __pycache__/
 .venv/
 storage/
 local-dev.db*
-gmp_*.db*
+quorum_*.db*

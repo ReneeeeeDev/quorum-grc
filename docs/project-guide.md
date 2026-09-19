@@ -1,10 +1,10 @@
-# Governance Management Portal Project Guide
+# Quorum GRC Project Guide
 
-This guide explains the completed Governance Management Portal MVP from product, engineering, deployment, and portfolio perspectives.
+This guide explains the completed Quorum GRC MVP from product, engineering, deployment, and portfolio perspectives.
 
 ## Project Purpose
 
-The Governance Management Portal is a full-stack demo/MVP application for managing governance operations in a centralized dashboard. It is designed as a portfolio-grade enterprise application, not a real production system for live company data.
+Quorum GRC is a full-stack demo/MVP application for managing governance operations in a centralized dashboard. It is designed as a portfolio-grade enterprise application, not a real production system for live company data.
 
 The application solves a common organizational workflow problem: governance data is often spread across spreadsheets, emails, shared drives, meeting notes, and manual follow-ups. This portal brings those workflows into one structured system with role-based access.
 
@@ -24,10 +24,10 @@ The project is complete for its intended scope:
 
 ## Live Links
 
-- Frontend demo: `https://governance-management-portal-4g7p.vercel.app/`
-- Backend health: `https://governance-management-portal.onrender.com/health`
-- Backend readiness: `https://governance-management-portal.onrender.com/health/ready`
-- GitHub repository: `https://github.com/Sankrityayana/Governance-Management-Portal`
+- Frontend demo: `https://<your-frontend>.vercel.app/`
+- Backend health: `https://<your-backend>.onrender.com/health`
+- Backend readiness: `https://<your-backend>.onrender.com/health/ready`
+- GitHub repository: `https://github.com/ReneeeeeDev/quorum-grc`
 
 ## Main Concepts
 
@@ -198,7 +198,8 @@ Frontend:
 
 - Next.js App Router.
 - TypeScript.
-- Tailwind CSS.
+- Tailwind CSS with a custom design token palette and IBM Plex Sans (`next/font`).
+- Client-side i18n (English, Spanish, Portuguese) with browser-language detection and a persisted switcher.
 - Playwright tests.
 
 Backend:
@@ -253,6 +254,13 @@ cd frontend
 npm run typecheck
 ```
 
+Translation dictionaries (fails on missing or unused keys):
+
+```bash
+cd frontend
+npm run i18n:check
+```
+
 Frontend build:
 
 ```bash
@@ -263,9 +271,9 @@ npm run build
 Production smoke check:
 
 ```bash
-PRODUCTION_FRONTEND_URL=https://governance-management-portal-4g7p.vercel.app \
-PRODUCTION_BACKEND_URL=https://governance-management-portal.onrender.com \
-SMOKE_EMAIL=admin@gmp.local \
+PRODUCTION_FRONTEND_URL=https://<your-frontend>.vercel.app \
+PRODUCTION_BACKEND_URL=https://<your-backend>.onrender.com \
+SMOKE_EMAIL=admin@quorum.local \
 SMOKE_PASSWORD=Admin@123 \
 node scripts/production-smoke.mjs
 ```
@@ -273,13 +281,13 @@ node scripts/production-smoke.mjs
 Role QA:
 
 ```bash
-ROLE_QA_BACKEND_URL=https://governance-management-portal.onrender.com node scripts/role-qa.mjs
+ROLE_QA_BACKEND_URL=https://<your-backend>.onrender.com node scripts/role-qa.mjs
 ```
 
 Screenshot capture:
 
 ```bash
-SCREENSHOT_FRONTEND_URL=https://governance-management-portal-4g7p.vercel.app node scripts/capture-linkedin-screenshots.mjs
+SCREENSHOT_FRONTEND_URL=https://<your-frontend>.vercel.app node scripts/capture-linkedin-screenshots.mjs
 ```
 
 ## Screenshots

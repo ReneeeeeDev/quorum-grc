@@ -27,7 +27,7 @@ def main() -> None:
 
         login_response = client.post(
             "/api/auth/login",
-            json={"email": "admin@gmp.local", "password": "Admin@123"},
+            json={"email": "admin@quorum.local", "password": "Admin@123"},
         )
         login_response.raise_for_status()
         token = login_response.json()["access_token"]
@@ -104,7 +104,7 @@ def main() -> None:
 
         failed_login = client.post(
             "/api/auth/login",
-            json={"email": "admin@gmp.local", "password": "WrongPassword@123"},
+            json={"email": "admin@quorum.local", "password": "WrongPassword@123"},
         )
         if failed_login.status_code != 401:
             raise AssertionError(f"Failed login should return 401, got {failed_login.status_code}")
@@ -121,7 +121,7 @@ def main() -> None:
 
         sso_callback = client.post(
             "/api/sso-providers/callback",
-            json={"provider_id": 1, "email": "admin@gmp.local", "external_subject": "admin-idp-subject"},
+            json={"provider_id": 1, "email": "admin@quorum.local", "external_subject": "admin-idp-subject"},
         )
         sso_callback.raise_for_status()
         if sso_callback.json()["status"] != "authenticated" or not sso_callback.json()["access_token"]:
@@ -129,7 +129,7 @@ def main() -> None:
 
         auditor_login = client.post(
             "/api/auth/login",
-            json={"email": "auditor@gmp.local", "password": "Auditor@123"},
+            json={"email": "auditor@quorum.local", "password": "Auditor@123"},
         )
         auditor_login.raise_for_status()
         auditor_headers = {"Authorization": f"Bearer {auditor_login.json()['access_token']}"}
@@ -143,7 +143,7 @@ def main() -> None:
 
         public_login = client.post(
             "/api/auth/login",
-            json={"email": "public-auditor@gmp.local", "password": "PublicAudit@123"},
+            json={"email": "public-auditor@quorum.local", "password": "PublicAudit@123"},
         )
         public_login.raise_for_status()
         public_headers = {"Authorization": f"Bearer {public_login.json()['access_token']}"}
@@ -165,7 +165,7 @@ def main() -> None:
 
         manager_login = client.post(
             "/api/auth/login",
-            json={"email": "manager@gmp.local", "password": "Manager@123"},
+            json={"email": "manager@quorum.local", "password": "Manager@123"},
         )
         manager_login.raise_for_status()
         manager_headers = {"Authorization": f"Bearer {manager_login.json()['access_token']}"}
@@ -180,7 +180,7 @@ def main() -> None:
 
         board_login = client.post(
             "/api/auth/login",
-            json={"email": "board@gmp.local", "password": "Board@123"},
+            json={"email": "board@quorum.local", "password": "Board@123"},
         )
         board_login.raise_for_status()
         board_headers = {"Authorization": f"Bearer {board_login.json()['access_token']}"}

@@ -2,13 +2,13 @@ import { expect, test } from "@playwright/test";
 
 const token = [
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9",
-  "eyJzdWIiOiJhZG1pbkBnbXAubG9jYWwiLCJleHAiOjQxMDI0NDQ4MDB9",
+  "eyJzdWIiOiJhZG1pbkBxdW9ydW0ubG9jYWwiLCJleHAiOjQxMDI0NDQ4MDB9",
   "playwright-signature",
 ].join(".");
 
 const users = [
-  { id: 1, tenant_id: 1, name: "Admin User", email: "admin@gmp.local", role: "Admin", department_id: 1 },
-  { id: 2, tenant_id: 1, name: "Governance Officer", email: "governance@gmp.local", role: "Governance Officer", department_id: 1 },
+  { id: 1, tenant_id: 1, name: "Admin User", email: "admin@quorum.local", role: "Admin", department_id: 1 },
+  { id: 2, tenant_id: 1, name: "Governance Officer", email: "governance@quorum.local", role: "Governance Officer", department_id: 1 },
 ];
 
 const tenants = [{ id: 1, name: "Acme Enterprise", domain: "acme.example", is_active: true, created_at: "2026-01-01T00:00:00Z" }];
@@ -60,7 +60,7 @@ test.beforeEach(async ({ page }) => {
   await page.route("**/api/integrations**", async (route) => route.fulfill({ json: [{ id: 1, tenant_id: 1, name: "GRC Export", integration_type: "compliance", endpoint_url: null, status: "configured", created_at: "2026-01-01T00:00:00Z" }], headers: totalHeader([1]) }));
   await page.route("**/api/sso-providers**", async (route) => route.fulfill({ json: [{ id: 1, tenant_id: 1, name: "Corporate SSO", provider_type: "saml", metadata_url: "https://idp.example/metadata", status: "enabled", created_at: "2026-01-01T00:00:00Z" }], headers: totalHeader([1]) }));
   await page.route("**/api/sso-providers/1/login", async (route) => route.fulfill({ json: { provider_id: 1, status: "ready", redirect_url: "https://idp.example/login", message: "Redirect URL placeholder returned for MVP SSO handoff." } }));
-  await page.route("**/api/sso-providers/callback", async (route) => route.fulfill({ json: { provider_id: 1, status: "authenticated", email: "admin@gmp.local", access_token: token, token_type: "bearer", message: "SSO identity mapped to portal user." } }));
+  await page.route("**/api/sso-providers/callback", async (route) => route.fulfill({ json: { provider_id: 1, status: "authenticated", email: "admin@quorum.local", access_token: token, token_type: "bearer", message: "SSO identity mapped to portal user." } }));
   await page.route("**/api/compliance-obligations**", async (route) => route.fulfill({ json: [{ id: 1, tenant_id: 1, title: "SOX evidence", source: "SOX", owner_id: 2, due_date: "2026-07-01", status: "in_progress", evidence_document_id: 1, description: "Collect evidence", created_at: "2026-01-01T00:00:00Z" }], headers: totalHeader([1]) }));
   await page.route("**/api/risks**", async (route) => route.fulfill({ json: [{ id: 1, tenant_id: 1, title: "Evidence gap", category: "audit", severity: "high", status: "open", owner_id: 2, mitigation_plan: "Weekly review", created_at: "2026-01-01T00:00:00Z" }], headers: totalHeader([1]) }));
 });
@@ -69,15 +69,21 @@ function totalHeader(rows: unknown[]) {
   return { "X-Total-Count": String(rows.length) };
 }
 
-test("login, dashboard charts, and mobile navigation render", async ({ page, isMobile }) => {
+test("login, dashboard charts, language switch, and mobile navigation render", async ({ page, isMobile }) => {
   await page.goto("/login");
   await page.waitForLoadState("networkidle");
-  await page.getByLabel("Email").fill("admin@gmp.local");
+  await page.getByLabel("Email").fill("admin@quorum.local");
   await page.getByLabel("Password").fill("Admin@123");
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page.getByRole("heading", { name: "Executive Dashboard" })).toBeVisible();
   await expect(page.getByText("Policy lifecycle")).toBeVisible();
   await expect(page.getByText("Risk severity")).toBeVisible();
+
+  await page.getByRole("button", { name: "ES", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Panel ejecutivo" })).toBeVisible();
+  await expect(page.getByText("Ciclo de vida de políticas")).toBeVisible();
+  await page.getByRole("button", { name: "EN", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Executive Dashboard" })).toBeVisible();
 
   if (isMobile) {
     await page.getByLabel("Open navigation").click();
@@ -88,7 +94,7 @@ test("login, dashboard charts, and mobile navigation render", async ({ page, isM
 
 test("audit filters and SSO callback controls work", async ({ page }) => {
   await page.goto("/audit-logs");
-  await page.evaluate((value) => window.localStorage.setItem("gmp_token", value), token);
+  await page.evaluate((value) => window.localStorage.setItem("quorum_token", value), token);
   await page.reload();
   await page.getByPlaceholder("Entity type").fill("policy");
   await page.getByRole("button", { name: "Apply" }).click();

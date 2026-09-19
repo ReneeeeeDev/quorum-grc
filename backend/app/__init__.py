@@ -1,2 +1,2 @@
-"""Governance Management Portal backend package."""
+"""Quorum GRC backend package."""
 

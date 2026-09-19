@@ -4,11 +4,11 @@ Use this checklist before marking the project complete and moving to another pro
 
 ## Release Target
 
-- Repository: `Sankrityayana/Governance-Management-Portal`
+- Repository: `ReneeeeeDev/quorum-grc`
 - Branch: `main`
 - Release tag: `v1.0.0-mvp`
-- Frontend: `https://governance-management-portal-4g7p.vercel.app`
-- Backend: `https://governance-management-portal.onrender.com`
+- Frontend: `https://<your-frontend>.vercel.app`
+- Backend: `https://<your-backend>.onrender.com`
 
 ## Required Checks
 
@@ -21,9 +21,9 @@ Use this checklist before marking the project complete and moving to another pro
 5. Production smoke passes:
 
 ```bash
-PRODUCTION_FRONTEND_URL=https://governance-management-portal-4g7p.vercel.app \
-PRODUCTION_BACKEND_URL=https://governance-management-portal.onrender.com \
-SMOKE_EMAIL=admin@gmp.local \
+PRODUCTION_FRONTEND_URL=https://<your-frontend>.vercel.app \
+PRODUCTION_BACKEND_URL=https://<your-backend>.onrender.com \
+SMOKE_EMAIL=admin@quorum.local \
 SMOKE_PASSWORD=Admin@123 \
 node scripts/production-smoke.mjs
 ```

@@ -3,7 +3,7 @@
 Captured from the deployed app:
 
 ```text
-https://governance-management-portal-4g7p.vercel.app
+https://<your-frontend>.vercel.app
 ```
 
 ## Recommended LinkedIn Images
@@ -20,6 +20,7 @@ Best short set:
 - `26-auditor-read-only-policies.png` - role-based read-only view
 - `29-board-published-policies.png` - board member view
 - `50-mobile-dashboard.png` - responsive mobile view
+- `60-i18n-dashboard-es.png` - Spanish UI (language switcher)
 
 If uploading the maximum 20 images to LinkedIn, use:
 
@@ -51,3 +52,4 @@ If uploading the maximum 20 images to LinkedIn, use:
 - Role views: `20-admin-dashboard.png` through `31-public-auditor-notifications.png`
 - Feature states: `40-feature-policy-form.png` through `48-feature-user-role-management.png`
 - Mobile views: `50-mobile-dashboard.png` through `52-mobile-policies.png`
+- Localization: `60-i18n-dashboard-es.png` (Spanish) and `61-i18n-dashboard-pt.png` (Portuguese)

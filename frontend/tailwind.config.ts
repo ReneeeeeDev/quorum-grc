@@ -5,18 +5,25 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "#172033",
-        muted: "#697386",
-        line: "#d8dee8",
+        ink: "#14162b",
+        muted: "#676b83",
+        line: "#e3e4ef",
         panel: "#ffffff",
-        canvas: "#f4f6f9",
-        primary: "#0f766e",
-        accent: "#2563eb",
+        canvas: "#f5f5fa",
+        primary: {
+          DEFAULT: "#4338ca",
+          strong: "#3730a3",
+          soft: "#eef0ff",
+        },
+        accent: "#0e7490",
         warning: "#b7791f",
         danger: "#b42318"
       },
+      fontFamily: {
+        sans: ["var(--font-sans)", "system-ui", "Segoe UI", "sans-serif"]
+      },
       boxShadow: {
-        panel: "0 1px 2px rgba(23, 32, 51, 0.08), 0 10px 24px rgba(23, 32, 51, 0.06)"
+        panel: "0 1px 2px rgba(20, 22, 43, 0.05), 0 8px 24px rgba(20, 22, 43, 0.05)"
       }
     }
   },
@@ -24,4 +31,3 @@ const config: Config = {
 };
 
 export default config;
-

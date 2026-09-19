@@ -1,6 +1,6 @@
 # Documentation
 
-This folder contains the product, engineering, deployment, verification, and portfolio documentation for the Governance Management Portal MVP.
+This folder contains the product, engineering, deployment, verification, and portfolio documentation for the Quorum GRC MVP.
 
 ## Start Here
 

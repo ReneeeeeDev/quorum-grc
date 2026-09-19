@@ -6,16 +6,16 @@ import { createRequire } from "node:module";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const requireFromFrontend = createRequire(path.join(root, "frontend", "package.json"));
 const { chromium } = requireFromFrontend("playwright");
-const baseUrl = normalizeUrl(process.env.SCREENSHOT_FRONTEND_URL ?? "https://governance-management-portal-4g7p.vercel.app");
+const baseUrl = normalizeUrl(process.env.SCREENSHOT_FRONTEND_URL ?? "http://127.0.0.1:3000");
 const outDir = path.join(root, "screenshots");
 
 const users = {
-  admin: { label: "Admin", email: "admin@gmp.local", password: "Admin@123" },
-  governance: { label: "Governance Officer", email: "governance@gmp.local", password: "Governance@123" },
-  manager: { label: "Manager", email: "manager@gmp.local", password: "Manager@123" },
-  auditor: { label: "Auditor", email: "auditor@gmp.local", password: "Auditor@123" },
-  board: { label: "Board Member", email: "board@gmp.local", password: "Board@123" },
-  publicAuditor: { label: "Public Auditor", email: "public-auditor@gmp.local", password: "PublicAudit@123" },
+  admin: { label: "Admin", email: "admin@quorum.local", password: "Admin@123" },
+  governance: { label: "Governance Officer", email: "governance@quorum.local", password: "Governance@123" },
+  manager: { label: "Manager", email: "manager@quorum.local", password: "Manager@123" },
+  auditor: { label: "Auditor", email: "auditor@quorum.local", password: "Auditor@123" },
+  board: { label: "Board Member", email: "board@quorum.local", password: "Board@123" },
+  publicAuditor: { label: "Public Auditor", email: "public-auditor@quorum.local", password: "PublicAudit@123" },
 };
 
 const adminPages = [
@@ -106,6 +106,7 @@ try {
   }
 
   await captureMobile(page);
+  await captureLanguages(page);
 } finally {
   await browser.close();
 }
@@ -116,11 +117,11 @@ for (const file of captured) console.log(`- ${file}`);
 async function login(page, user) {
   await clearSession(page);
   await page.goto(`${baseUrl}/login`, { waitUntil: "networkidle" });
-  await page.getByLabel("Email").fill(user.email);
-  await page.getByLabel("Password").fill(user.password);
+  await page.fill('input[type="email"]', user.email);
+  await page.fill('input[type="password"]', user.password);
   await Promise.all([
     page.waitForURL(/dashboard/, { timeout: 45000 }).catch(() => page.waitForLoadState("networkidle")),
-    page.getByRole("button", { name: "Sign in" }).click(),
+    page.click('button[type="submit"]'),
   ]);
   await page.waitForLoadState("networkidle");
 }
@@ -137,7 +138,7 @@ async function screenshot(page, name) {
 }
 
 async function clearSession(page) {
-  await page.evaluate(() => window.localStorage.removeItem("gmp_token")).catch(() => undefined);
+  await page.evaluate(() => window.localStorage.removeItem("quorum_token")).catch(() => undefined);
 }
 
 function clickFirst(label) {
@@ -169,6 +170,16 @@ async function captureMobile(page) {
   }
   await visit(page, "/policies");
   await screenshot(page, "52-mobile-policies");
+}
+
+async function captureLanguages(page) {
+  await page.setViewportSize({ width: 1440, height: 1050 });
+  for (const [lang, name] of [["es", "60-i18n-dashboard-es"], ["pt", "61-i18n-dashboard-pt"]]) {
+    await page.addInitScript((value) => window.localStorage.setItem("quorum_lang", value), lang);
+    await login(page, users.admin);
+    await visit(page, "/dashboard");
+    await screenshot(page, name);
+  }
 }
 
 function normalizeUrl(value) {

@@ -7,7 +7,7 @@ Use this flow for portfolio walkthroughs, interviews, and stakeholder demos.
 Open the deployed frontend:
 
 ```text
-https://governance-management-portal-4g7p.vercel.app
+https://<your-frontend>.vercel.app
 ```
 
 Use demo mode only when `DEMO_SEED_ENABLED=true`.
@@ -17,7 +17,7 @@ Use demo mode only when `DEMO_SEED_ENABLED=true`.
 1. Sign in as Admin:
 
    ```text
-   admin@gmp.local / Admin@123
+   admin@quorum.local / Admin@123
    ```
 
 2. Dashboard:
@@ -44,7 +44,7 @@ Use demo mode only when `DEMO_SEED_ENABLED=true`.
    - Sign out and sign in as Auditor:
 
      ```text
-     auditor@gmp.local / Auditor@123
+     auditor@quorum.local / Auditor@123
      ```
 
    - Show read-only access and hidden mutation controls.
@@ -52,7 +52,7 @@ Use demo mode only when `DEMO_SEED_ENABLED=true`.
 8. Board Member:
 
    ```text
-   board@gmp.local / Board@123
+   board@quorum.local / Board@123
    ```
 
    - Show published-policy-only access and no audit log access.

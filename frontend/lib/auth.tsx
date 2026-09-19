@@ -52,8 +52,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       router.replace("/login");
     }
 
-    window.addEventListener("gmp:unauthorized", handleUnauthorized);
-    return () => window.removeEventListener("gmp:unauthorized", handleUnauthorized);
+    window.addEventListener("quorum:unauthorized", handleUnauthorized);
+    return () => window.removeEventListener("quorum:unauthorized", handleUnauthorized);
   }, [router]);
 
   const login = useCallback(

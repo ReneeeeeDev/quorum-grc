@@ -7,7 +7,7 @@ Use this after Vercel, Render, and Supabase are connected. It validates the depl
 ```bash
 PRODUCTION_FRONTEND_URL=https://your-vercel-app.vercel.app
 PRODUCTION_BACKEND_URL=https://your-render-api.onrender.com
-SMOKE_EMAIL=admin@gmp.local
+SMOKE_EMAIL=admin@quorum.local
 SMOKE_PASSWORD=Admin@123
 ```
 
@@ -26,7 +26,7 @@ PowerShell example:
 ```powershell
 $env:PRODUCTION_FRONTEND_URL="https://your-vercel-app.vercel.app"
 $env:PRODUCTION_BACKEND_URL="https://your-render-api.onrender.com"
-$env:SMOKE_EMAIL="admin@gmp.local"
+$env:SMOKE_EMAIL="admin@quorum.local"
 $env:SMOKE_PASSWORD="Admin@123"
 node scripts/production-smoke.mjs
 ```
@@ -77,7 +77,7 @@ After the automated smoke script passes, manually sign in as each active role an
 For seeded demo deployments, run automated role QA:
 
 ```bash
-ROLE_QA_BACKEND_URL=https://governance-management-portal.onrender.com node scripts/role-qa.mjs
+ROLE_QA_BACKEND_URL=https://<your-backend>.onrender.com node scripts/role-qa.mjs
 ```
 
 This script logs in as the seeded Admin, Governance Officer, Manager, Auditor, Board Member, and Public Auditor users. It validates role-scoped reads, read-only write blocking, notification count alignment, and pagination metadata.

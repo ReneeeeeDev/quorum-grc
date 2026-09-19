@@ -33,7 +33,7 @@ Render Dashboard -> New -> Blueprint -> connect this GitHub repo
 Blueprint URL:
 
 ```text
-https://dashboard.render.com/blueprint/new?repo=https://github.com/Sankrityayana/Governance-Management-Portal
+https://dashboard.render.com/blueprint/new?repo=https://github.com/ReneeeeeDev/quorum-grc
 ```
 
 Required Render environment variables:
@@ -50,7 +50,7 @@ AUTH_RATE_LIMIT_PER_MINUTE=20
 
 Recommended Render settings:
 
-- Service: `governance-management-backend`
+- Service: `quorum-grc-backend`
 - Runtime: Docker
 - Root directory: `backend`
 - Health check path: `/health`
@@ -94,7 +94,7 @@ curl https://<your-vercel-domain>/login
 Then sign in with seeded credentials only if `DEMO_SEED_ENABLED=true` on Render:
 
 ```text
-admin@gmp.local / Admin@123
+admin@quorum.local / Admin@123
 ```
 
 ## 4. Recommended Order

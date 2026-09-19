@@ -6,6 +6,7 @@ import { AlertTriangle, Bell, CheckCircle2, Clock, FileCheck2, ListChecks, Paper
 import { StatusChip } from "@/components/status-chip";
 import { apiRequest, apiRequestWithMeta, apiUpload, getToken } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { statusLabel, useI18n, type Translate } from "@/lib/i18n";
 import type {
   ActionItem,
   AuditLog,
@@ -210,7 +211,7 @@ function PageHeader({ title, description }: { title: string; description: string
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded border border-line bg-panel shadow-panel">
+    <section className="min-w-0 rounded-xl border border-line bg-panel shadow-panel">
       <div className="border-b border-line px-4 py-3">
         <h2 className="text-sm font-semibold text-ink">{title}</h2>
       </div>
@@ -240,10 +241,13 @@ function useRolePermissions() {
   };
 }
 
-function ReadOnlyPanel({ message = "Your role can view these records, but cannot create, update, or delete them." }: { message?: string }) {
+function ReadOnlyPanel({ message }: { message?: string }) {
+  const { t } = useI18n();
   return (
-    <Panel title="Role access">
-      <div className="rounded border border-dashed border-line bg-slate-50 px-4 py-5 text-sm text-muted">{message}</div>
+    <Panel title={t("Role access")}>
+      <div className="rounded-lg border border-dashed border-line bg-canvas px-4 py-5 text-sm text-muted">
+        {message ?? t("Your role can view these records, but cannot create, update, or delete them.")}
+      </div>
     </Panel>
   );
 }
@@ -261,6 +265,7 @@ function ServerPager({
   total: number | null | undefined;
   onOffsetChange: (offset: number) => void;
 }) {
+  const { t } = useI18n();
   const currentPage = Math.floor(offset / pageSize) + 1;
   const totalPages = total == null ? null : Math.max(1, Math.ceil(total / pageSize));
   const showingStart = rows.length ? offset + 1 : 0;
@@ -268,42 +273,45 @@ function ServerPager({
   return (
     <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
       <span className="text-xs text-muted">
-        {total == null ? `Page ${currentPage}` : `Page ${currentPage} of ${totalPages} · Showing ${showingStart}-${showingEnd} of ${total}`}
+        {total == null
+          ? t("Page {current}", { current: currentPage })
+          : t("Page {current} of {pages} · Showing {start}-{end} of {total}", { current: currentPage, pages: totalPages ?? 1, start: showingStart, end: showingEnd, total })}
       </span>
       <button
         type="button"
         onClick={() => onOffsetChange(Math.max(0, offset - pageSize))}
         disabled={offset === 0}
-        className="rounded border border-line px-3 py-1.5 text-xs font-semibold text-ink hover:bg-slate-50 disabled:opacity-50"
+        className="rounded-lg border border-line px-3 py-1.5 text-xs font-semibold text-ink hover:bg-canvas disabled:opacity-50"
       >
-        Previous
+        {t("Previous")}
       </button>
       <button
         type="button"
         onClick={() => onOffsetChange(offset + pageSize)}
         disabled={total == null ? rows.length < pageSize : offset + pageSize >= total}
-        className="rounded border border-line px-3 py-1.5 text-xs font-semibold text-ink hover:bg-slate-50 disabled:opacity-50"
+        className="rounded-lg border border-line px-3 py-1.5 text-xs font-semibold text-ink hover:bg-canvas disabled:opacity-50"
       >
-        Next
+        {t("Next")}
       </button>
     </div>
   );
 }
 
 function MiniBarChart({ rows }: { rows: ReportBreakdownItem[] }) {
+  const { t } = useI18n();
   const max = Math.max(1, ...rows.map((row) => row.value));
   return (
     <div className="space-y-3">
       {rows.length ? rows.map((row) => (
         <div key={row.label} className="grid grid-cols-[120px_1fr_36px] items-center gap-3 text-xs">
-          <span className="truncate font-semibold capitalize text-ink">{row.label.replaceAll("_", " ")}</span>
-          <div className="h-2 overflow-hidden rounded bg-slate-100">
-            <div className="h-full rounded bg-primary" style={{ width: `${Math.max(6, (row.value / max) * 100)}%` }} />
+          <span className="truncate font-semibold text-ink">{statusLabel(t, row.label)}</span>
+          <div className="h-2 overflow-hidden rounded-full bg-primary-soft">
+            <div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(6, (row.value / max) * 100)}%` }} />
           </div>
           <span className="text-right font-semibold text-muted">{row.value}</span>
         </div>
       )) : (
-        <div className="rounded border border-dashed border-line px-3 py-6 text-center text-sm text-muted">No chart data available.</div>
+        <div className="rounded-lg border border-dashed border-line px-3 py-6 text-center text-sm text-muted">{t("No chart data available.")}</div>
       )}
     </div>
   );
@@ -318,6 +326,7 @@ function DataTable<T>({
   columns: { header: string; cell: (row: T) => React.ReactNode }[];
   empty: string;
 }) {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const pageSize = 10;
@@ -334,7 +343,7 @@ function DataTable<T>({
   }, [query, rows.length]);
 
   if (!rows.length) {
-    return <div className="rounded border border-dashed border-line px-4 py-8 text-center text-sm text-muted">{empty}</div>;
+    return <div className="rounded-lg border border-dashed border-line px-4 py-8 text-center text-sm text-muted">{empty}</div>;
   }
 
   return (
@@ -343,20 +352,20 @@ function DataTable<T>({
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search records"
-          className="w-full rounded border border-line px-3 py-2 text-sm outline-none focus:border-primary sm:max-w-xs"
+          placeholder={t("Search records")}
+          className="w-full rounded-lg border border-line px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary-soft sm:max-w-xs"
         />
         <div className="text-xs text-muted">
-          Showing {visibleRows.length} of {filteredRows.length} records
+          {t("Showing {shown} of {total} records", { shown: visibleRows.length, total: filteredRows.length })}
         </div>
       </div>
       {!filteredRows.length ? (
-        <div className="rounded border border-dashed border-line px-4 py-8 text-center text-sm text-muted">No records match your search.</div>
+        <div className="rounded-lg border border-dashed border-line px-4 py-8 text-center text-sm text-muted">{t("No records match your search.")}</div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] border-collapse text-left text-sm">
             <thead>
-              <tr className="border-b border-line bg-slate-50 text-xs uppercase text-muted">
+              <tr className="border-b border-line bg-canvas text-xs uppercase text-muted">
                 {columns.map((column) => (
                   <th key={column.header} className="px-3 py-2 font-semibold">
                     {column.header}
@@ -384,20 +393,20 @@ function DataTable<T>({
             type="button"
             onClick={() => setPage((current) => Math.max(1, current - 1))}
             disabled={currentPage === 1}
-            className="rounded border border-line px-3 py-1.5 text-xs font-semibold text-ink hover:bg-slate-50 disabled:opacity-50"
+            className="rounded-lg border border-line px-3 py-1.5 text-xs font-semibold text-ink hover:bg-canvas disabled:opacity-50"
           >
-            Previous
+            {t("Previous")}
           </button>
           <span className="text-xs text-muted">
-            Page {currentPage} of {totalPages}
+            {t("Page {current} of {pages}", { current: currentPage, pages: totalPages })}
           </span>
           <button
             type="button"
             onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
             disabled={currentPage === totalPages}
-            className="rounded border border-line px-3 py-1.5 text-xs font-semibold text-ink hover:bg-slate-50 disabled:opacity-50"
+            className="rounded-lg border border-line px-3 py-1.5 text-xs font-semibold text-ink hover:bg-canvas disabled:opacity-50"
           >
-            Next
+            {t("Next")}
           </button>
         </div>
       ) : null}
@@ -416,6 +425,7 @@ function CompactForm({
   initialValues: Record<string, string>;
   onSubmit: (values: Record<string, string>) => Promise<void>;
 }) {
+  const { t } = useI18n();
   const [values, setValues] = useState(initialValues);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -428,7 +438,7 @@ function CompactForm({
       await onSubmit(values);
       setValues(initialValues);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to save");
+      setError(err instanceof Error ? err.message : t("Unable to save"));
     } finally {
       setSubmitting(false);
     }
@@ -444,20 +454,20 @@ function CompactForm({
               <textarea
                 value={values[field.name] ?? ""}
                 onChange={(event) => setValues((current) => ({ ...current, [field.name]: event.target.value }))}
-                className="mt-1 min-h-24 w-full rounded border border-line px-3 py-2 text-sm outline-none focus:border-primary"
+                className="mt-1 min-h-24 w-full rounded-lg border border-line px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary-soft"
                 required={field.required}
               />
             ) : field.type === "select" ? (
               <select
                 value={values[field.name] ?? ""}
                 onChange={(event) => setValues((current) => ({ ...current, [field.name]: event.target.value }))}
-                className="mt-1 w-full rounded border border-line bg-white px-3 py-2 text-sm outline-none focus:border-primary"
+                className="mt-1 w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary-soft"
                 required={field.required}
               >
-                <option value="">Select</option>
+                <option value="">{t("Select")}</option>
                 {field.options?.map((option) => (
                   <option key={option.value} value={option.value}>
-                    {option.label}
+                    {t(option.label)}
                   </option>
                 ))}
               </select>
@@ -465,21 +475,21 @@ function CompactForm({
               <input
                 value={values[field.name] ?? ""}
                 onChange={(event) => setValues((current) => ({ ...current, [field.name]: event.target.value }))}
-                className="mt-1 w-full rounded border border-line px-3 py-2 text-sm outline-none focus:border-primary"
+                className="mt-1 w-full rounded-lg border border-line px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary-soft"
                 type={field.type ?? "text"}
                 required={field.required}
               />
             )}
           </label>
         ))}
-        {error ? <div className="rounded bg-red-50 px-3 py-2 text-sm text-danger md:col-span-2">{error}</div> : null}
+        {error ? <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-danger md:col-span-2">{error}</div> : null}
         <div className="md:col-span-2">
           <button
             type="submit"
             disabled={submitting}
-            className="rounded bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800 disabled:opacity-60"
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-strong disabled:opacity-60"
           >
-            {submitting ? "Saving..." : "Save"}
+            {submitting ? t("Saving...") : t("Save")}
           </button>
         </div>
       </form>
@@ -628,17 +638,18 @@ function usePortalData(resources: PortalResource[] = allPortalResources, resourc
 }
 
 function LoadingOrError({ state, error }: { state: LoadState; error: string | null }) {
+  const { t } = useI18n();
   if (state === "loading" || state === "idle") {
-    return <div className="rounded border border-line bg-panel px-4 py-8 text-center text-sm text-muted">Loading governance records...</div>;
+    return <div className="rounded-lg border border-line bg-panel px-4 py-8 text-center text-sm text-muted">{t("Loading governance records...")}</div>;
   }
   if (state === "error") {
-    return <div className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-danger">{error}</div>;
+    return <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-danger">{error ? t(error) : null}</div>;
   }
   return null;
 }
 
-function userOptions(users: User[]) {
-  return users.map((user) => ({ label: `${user.name} (${user.role})`, value: String(user.id) }));
+function userOptions(users: User[], t: Translate) {
+  return users.map((user) => ({ label: `${user.name} (${t(user.role)})`, value: String(user.id) }));
 }
 
 function departmentOptions(departments: Department[]) {
@@ -649,8 +660,8 @@ function meetingOptions(meetings: Meeting[]) {
   return meetings.map((meeting) => ({ label: meeting.title, value: String(meeting.id) }));
 }
 
-function decisionOptions(decisions: Decision[]) {
-  return decisions.map((decision) => ({ label: `Decision #${decision.id}`, value: String(decision.id) }));
+function decisionOptions(decisions: Decision[], t: Translate) {
+  return decisions.map((decision) => ({ label: t("Decision #{id}", { id: decision.id }), value: String(decision.id) }));
 }
 
 function tenantOptions(tenants: Tenant[]) {
@@ -677,32 +688,33 @@ async function downloadApiFile(path: string, filename: string) {
 }
 
 export function DashboardScreen() {
+  const { t, locale } = useI18n();
   const data = usePortalData(dashboardResources);
 
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
   const cards = [
-    { label: "Open actions", value: data.reports?.open_actions ?? 0, icon: ListChecks },
-    { label: "Overdue items", value: data.reports?.overdue_items ?? 0, icon: AlertTriangle },
-    { label: "Published policies", value: data.reports?.published_policies ?? 0, icon: FileCheck2 },
-    { label: "Pending approvals", value: data.reports?.pending_approvals ?? 0, icon: Clock },
-    { label: "Upcoming meetings", value: data.reports?.upcoming_meetings ?? 0, icon: CheckCircle2 },
-    { label: "Documents", value: data.reports?.documents ?? 0, icon: Paperclip },
-    { label: "Unread alerts", value: data.reports?.unread_notifications ?? 0, icon: Bell },
-    { label: "Integrations", value: data.reports?.active_integrations ?? 0, icon: Plug },
+    { label: t("Open actions"), value: data.reports?.open_actions ?? 0, icon: ListChecks },
+    { label: t("Overdue items"), value: data.reports?.overdue_items ?? 0, icon: AlertTriangle },
+    { label: t("Published policies"), value: data.reports?.published_policies ?? 0, icon: FileCheck2 },
+    { label: t("Pending approvals"), value: data.reports?.pending_approvals ?? 0, icon: Clock },
+    { label: t("Upcoming meetings"), value: data.reports?.upcoming_meetings ?? 0, icon: CheckCircle2 },
+    { label: t("Documents"), value: data.reports?.documents ?? 0, icon: Paperclip },
+    { label: t("Unread alerts"), value: data.reports?.unread_notifications ?? 0, icon: Bell },
+    { label: t("Integrations"), value: data.reports?.active_integrations ?? 0, icon: Plug },
   ];
 
   return (
     <>
-      <PageHeader title="Executive Dashboard" description="Governance KPIs, pending accountability items, and recent enterprise activity." />
+      <PageHeader title={t("Executive Dashboard")} description={t("Governance KPIs, pending accountability items, and recent enterprise activity.")} />
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {cards.map((card) => {
           const Icon = card.icon;
           return (
-            <div key={card.label} className="rounded border border-line bg-panel p-4 shadow-panel">
+            <div key={card.label} className="rounded-xl border border-line bg-panel p-4 shadow-panel">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold uppercase text-muted">{card.label}</span>
-                <Icon className="h-4 w-4 text-primary" />
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-soft text-primary"><Icon className="h-4 w-4" /></span>
               </div>
               <div className="mt-3 text-3xl font-semibold text-ink">{card.value}</div>
             </div>
@@ -710,36 +722,36 @@ export function DashboardScreen() {
         })}
       </div>
       <div className="mt-6 grid gap-6 xl:grid-cols-3">
-        <Panel title="Policy lifecycle">
+        <Panel title={t("Policy lifecycle")}>
           <MiniBarChart rows={data.reportBreakdown.policy_status} />
         </Panel>
-        <Panel title="Action status">
+        <Panel title={t("Action status")}>
           <MiniBarChart rows={data.reportBreakdown.action_status} />
         </Panel>
-        <Panel title="Risk severity">
+        <Panel title={t("Risk severity")}>
           <MiniBarChart rows={data.reportBreakdown.risk_severity} />
         </Panel>
       </div>
       <div className="mt-6 grid gap-6 xl:grid-cols-2">
-        <Panel title="Overdue and open action items">
+        <Panel title={t("Overdue and open action items")}>
           <DataTable
             rows={data.actions.slice(0, 6)}
-            empty="No action items yet."
+            empty={t("No action items yet.")}
             columns={[
-              { header: "Action", cell: (row) => row.title },
-              { header: "Due", cell: (row) => row.due_date },
-              { header: "Status", cell: (row) => <StatusChip status={row.status} /> },
+              { header: t("Action"), cell: (row) => row.title },
+              { header: t("Due"), cell: (row) => row.due_date },
+              { header: t("Status"), cell: (row) => <StatusChip status={row.status} /> },
             ]}
           />
         </Panel>
-        <Panel title="Recent audit activity">
+        <Panel title={t("Recent audit activity")}>
           <DataTable
             rows={data.auditLogs.slice(0, 6)}
-            empty="No audit events yet."
+            empty={t("No audit events yet.")}
             columns={[
-              { header: "Action", cell: (row) => row.action },
-              { header: "Entity", cell: (row) => `${row.entity_type} #${row.entity_id ?? "-"}` },
-              { header: "Time", cell: (row) => new Date(row.created_at).toLocaleString() },
+              { header: t("Action"), cell: (row) => row.action },
+              { header: t("Entity"), cell: (row) => `${row.entity_type} #${row.entity_id ?? "-"}` },
+              { header: t("Time"), cell: (row) => new Date(row.created_at).toLocaleString(locale) },
             ]}
           />
         </Panel>
@@ -749,6 +761,7 @@ export function DashboardScreen() {
 }
 
 export function PoliciesScreen() {
+  const { t } = useI18n();
   const [policyOffset, setPolicyOffset] = useState(0);
   const data = usePortalData(policyResources, { policies: paginatedParams(policyOffset) });
   const permissions = useRolePermissions();
@@ -756,19 +769,19 @@ export function PoliciesScreen() {
 
   return (
     <>
-      <PageHeader title="Policies" description="Manage governance policies, SOPs, standards, lifecycle states, and policy ownership." />
+      <PageHeader title={t("Policies")} description={t("Manage governance policies, SOPs, standards, lifecycle states, and policy ownership.")} />
       <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
-        <Panel title="Policy repository">
+        <Panel title={t("Policy repository")}>
           <DataTable
             rows={data.policies}
-            empty="No policies found."
+            empty={t("No policies found.")}
             columns={[
-              { header: "Title", cell: (row) => <div><div className="font-semibold">{row.title}</div><div className="text-xs text-muted">{row.summary}</div></div> },
-              { header: "Version", cell: (row) => row.version },
-              { header: "Status", cell: (row) => <StatusChip status={row.status} /> },
-              { header: "Effective", cell: (row) => row.effective_date ?? "Not set" },
+              { header: t("Title"), cell: (row) => <div><div className="font-semibold">{row.title}</div><div className="text-xs text-muted">{row.summary}</div></div> },
+              { header: t("Version"), cell: (row) => row.version },
+              { header: t("Status"), cell: (row) => <StatusChip status={row.status} /> },
+              { header: t("Effective"), cell: (row) => row.effective_date ?? t("Not set") },
               ...(permissions.canManageGovernance ? [{
-                header: "Actions",
+                header: t("Actions"),
                 cell: (row: Policy) => (
                   <button
                     className="text-xs font-semibold text-danger"
@@ -777,7 +790,7 @@ export function PoliciesScreen() {
                       await data.reload();
                     }}
                   >
-                    Delete
+                    {t("Delete")}
                   </button>
                 ),
               }] : []),
@@ -787,15 +800,15 @@ export function PoliciesScreen() {
         </Panel>
         {permissions.canManageGovernance ? (
           <CompactForm
-            title="Create policy"
+            title={t("Create policy")}
             initialValues={{ title: "", version: "1.0", status: "draft", owner_id: String(data.users[0]?.id ?? ""), effective_date: today(), summary: "" }}
             fields={[
-              { name: "title", label: "Title", required: true },
-              { name: "version", label: "Version", required: true },
-              { name: "status", label: "Status", type: "select", options: policyStatusOptions, required: true },
-              { name: "owner_id", label: "Owner", type: "select", options: userOptions(data.users), required: true },
-              { name: "effective_date", label: "Effective date", type: "date" },
-              { name: "summary", label: "Summary", type: "textarea" },
+              { name: "title", label: t("Title"), required: true },
+              { name: "version", label: t("Version"), required: true },
+              { name: "status", label: t("Status"), type: "select", options: policyStatusOptions, required: true },
+              { name: "owner_id", label: t("Owner"), type: "select", options: userOptions(data.users, t), required: true },
+              { name: "effective_date", label: t("Effective date"), type: "date" },
+              { name: "summary", label: t("Summary"), type: "textarea" },
             ]}
             onSubmit={async (values) => {
               await apiRequest<Policy>("/api/policies", { method: "POST", body: JSON.stringify({ ...values, owner_id: Number(values.owner_id) }) });
@@ -809,32 +822,33 @@ export function PoliciesScreen() {
 }
 
 export function DepartmentsScreen() {
+  const { t, locale } = useI18n();
   const data = usePortalData(departmentResources);
   const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
   return (
     <>
-      <PageHeader title="Committees and Departments" description="Govern governance structures, boards, committees, departments, and reporting ownership." />
+      <PageHeader title={t("Committees and Departments")} description={t("Govern governance structures, boards, committees, departments, and reporting ownership.")} />
       <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
-        <Panel title="Governance structure">
+        <Panel title={t("Governance structure")}>
           <DataTable
             rows={data.departments}
-            empty="No departments found."
+            empty={t("No departments found.")}
             columns={[
-              { header: "Name", cell: (row) => row.name },
-              { header: "Head", cell: (row) => data.users.find((user) => user.id === row.head_id)?.name ?? "Unassigned" },
-              { header: "Created", cell: (row) => new Date(row.created_at).toLocaleDateString() },
+              { header: t("Name"), cell: (row) => row.name },
+              { header: t("Head"), cell: (row) => data.users.find((user) => user.id === row.head_id)?.name ?? t("Unassigned") },
+              { header: t("Created"), cell: (row) => new Date(row.created_at).toLocaleDateString(locale) },
             ]}
           />
         </Panel>
         {permissions.canManageAdmin ? (
           <CompactForm
-            title="Create department or committee"
+            title={t("Create department or committee")}
             initialValues={{ name: "", head_id: "" }}
             fields={[
-              { name: "name", label: "Name", required: true },
-              { name: "head_id", label: "Head", type: "select", options: userOptions(data.users) },
+              { name: "name", label: t("Name"), required: true },
+              { name: "head_id", label: t("Head"), type: "select", options: userOptions(data.users, t) },
             ]}
             onSubmit={async (values) => {
               await apiRequest<Department>("/api/departments", {
@@ -851,35 +865,36 @@ export function DepartmentsScreen() {
 }
 
 export function MeetingsScreen() {
+  const { t } = useI18n();
   const data = usePortalData(meetingResources);
   const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
   return (
     <>
-      <PageHeader title="Meetings" description="Track agendas, minutes, participants, committee sessions, and follow-up governance activity." />
+      <PageHeader title={t("Meetings")} description={t("Track agendas, minutes, participants, committee sessions, and follow-up governance activity.")} />
       <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
-        <Panel title="Meeting register">
+        <Panel title={t("Meeting register")}>
           <DataTable
             rows={data.meetings}
-            empty="No meetings found."
+            empty={t("No meetings found.")}
             columns={[
-              { header: "Title", cell: (row) => <div><div className="font-semibold">{row.title}</div><div className="text-xs text-muted">{row.agenda}</div></div> },
-              { header: "Date", cell: (row) => row.meeting_date },
-              { header: "Committee", cell: (row) => data.departments.find((department) => department.id === row.committee_id)?.name ?? "General" },
+              { header: t("Title"), cell: (row) => <div><div className="font-semibold">{row.title}</div><div className="text-xs text-muted">{row.agenda}</div></div> },
+              { header: t("Date"), cell: (row) => row.meeting_date },
+              { header: t("Committee"), cell: (row) => data.departments.find((department) => department.id === row.committee_id)?.name ?? t("General") },
             ]}
           />
         </Panel>
         {permissions.canManageGovernance ? (
           <CompactForm
-            title="Schedule meeting"
+            title={t("Schedule meeting")}
             initialValues={{ title: "", meeting_date: nextMonth(), committee_id: "", agenda: "", minutes: "" }}
             fields={[
-              { name: "title", label: "Title", required: true },
-              { name: "meeting_date", label: "Date", type: "date", required: true },
-              { name: "committee_id", label: "Committee", type: "select", options: departmentOptions(data.departments) },
-              { name: "agenda", label: "Agenda", type: "textarea" },
-              { name: "minutes", label: "Minutes", type: "textarea" },
+              { name: "title", label: t("Title"), required: true },
+              { name: "meeting_date", label: t("Date"), type: "date", required: true },
+              { name: "committee_id", label: t("Committee"), type: "select", options: departmentOptions(data.departments) },
+              { name: "agenda", label: t("Agenda"), type: "textarea" },
+              { name: "minutes", label: t("Minutes"), type: "textarea" },
             ]}
             onSubmit={async (values) => {
               await apiRequest<Meeting>("/api/meetings", {
@@ -896,35 +911,36 @@ export function MeetingsScreen() {
 }
 
 export function DecisionsScreen() {
+  const { t } = useI18n();
   const data = usePortalData(decisionResources);
   const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
   return (
     <>
-      <PageHeader title="Decision Register" description="Track board decisions, committee decisions, executive approvals, and accountability owners." />
+      <PageHeader title={t("Decision Register")} description={t("Track board decisions, committee decisions, executive approvals, and accountability owners.")} />
       <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
-        <Panel title="Decision register">
+        <Panel title={t("Decision register")}>
           <DataTable
             rows={data.decisions}
-            empty="No decisions found."
+            empty={t("No decisions found.")}
             columns={[
-              { header: "Decision", cell: (row) => row.description },
-              { header: "Date", cell: (row) => row.decision_date },
-              { header: "Meeting", cell: (row) => data.meetings.find((meeting) => meeting.id === row.meeting_id)?.title ?? "Standalone" },
-              { header: "Owner", cell: (row) => data.users.find((user) => user.id === row.owner_id)?.name ?? "Unassigned" },
+              { header: t("Decision"), cell: (row) => row.description },
+              { header: t("Date"), cell: (row) => row.decision_date },
+              { header: t("Meeting"), cell: (row) => data.meetings.find((meeting) => meeting.id === row.meeting_id)?.title ?? t("Standalone") },
+              { header: t("Owner"), cell: (row) => data.users.find((user) => user.id === row.owner_id)?.name ?? t("Unassigned") },
             ]}
           />
         </Panel>
         {permissions.canManageGovernance ? (
           <CompactForm
-            title="Record decision"
+            title={t("Record decision")}
             initialValues={{ meeting_id: "", description: "", decision_date: today(), owner_id: "" }}
             fields={[
-              { name: "meeting_id", label: "Meeting", type: "select", options: meetingOptions(data.meetings) },
-              { name: "decision_date", label: "Decision date", type: "date", required: true },
-              { name: "owner_id", label: "Owner", type: "select", options: userOptions(data.users) },
-              { name: "description", label: "Description", type: "textarea", required: true },
+              { name: "meeting_id", label: t("Meeting"), type: "select", options: meetingOptions(data.meetings) },
+              { name: "decision_date", label: t("Decision date"), type: "date", required: true },
+              { name: "owner_id", label: t("Owner"), type: "select", options: userOptions(data.users, t) },
+              { name: "description", label: t("Description"), type: "textarea", required: true },
             ]}
             onSubmit={async (values) => {
               await apiRequest<Decision>("/api/decisions", {
@@ -946,29 +962,30 @@ export function DecisionsScreen() {
 }
 
 export function ActionsScreen() {
+  const { t } = useI18n();
   const data = usePortalData(actionResources);
   const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
   return (
     <>
-      <PageHeader title="Action Item Tracker" description="Monitor assigned actions, due dates, completion status, and decision follow-through." />
+      <PageHeader title={t("Action Item Tracker")} description={t("Monitor assigned actions, due dates, completion status, and decision follow-through.")} />
       <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
-        <Panel title="Action items">
+        <Panel title={t("Action items")}>
           <DataTable
             rows={data.actions}
-            empty="No action items found."
+            empty={t("No action items found.")}
             columns={[
-              { header: "Action", cell: (row) => row.title },
-              { header: "Assignee", cell: (row) => data.users.find((user) => user.id === row.assigned_to)?.name ?? "Unknown" },
-              { header: "Due", cell: (row) => row.due_date },
-              { header: "Status", cell: (row) => <StatusChip status={row.status} /> },
+              { header: t("Action"), cell: (row) => row.title },
+              { header: t("Assignee"), cell: (row) => data.users.find((user) => user.id === row.assigned_to)?.name ?? t("Unknown") },
+              { header: t("Due"), cell: (row) => row.due_date },
+              { header: t("Status"), cell: (row) => <StatusChip status={row.status} /> },
               ...(permissions.canManageGovernance ? [{
-                header: "Update",
+                header: t("Update"),
                 cell: (row: ActionItem) => (
                   <select
                     value={row.status}
-                    className="rounded border border-line bg-white px-2 py-1 text-xs"
+                    className="rounded-lg border border-line bg-white px-2 py-1 text-xs"
                     onChange={async (event) => {
                       await apiRequest<ActionItem>(`/api/action-items/${row.id}`, {
                         method: "PUT",
@@ -979,7 +996,7 @@ export function ActionsScreen() {
                   >
                     {actionStatusOptions.map((option) => (
                       <option key={option.value} value={option.value}>
-                        {option.label}
+                        {t(option.label)}
                       </option>
                     ))}
                   </select>
@@ -990,14 +1007,14 @@ export function ActionsScreen() {
         </Panel>
         {permissions.canManageGovernance ? (
           <CompactForm
-            title="Create action item"
+            title={t("Create action item")}
             initialValues={{ decision_id: "", title: "", assigned_to: String(data.users[0]?.id ?? ""), due_date: nextMonth(), status: "open" }}
             fields={[
-              { name: "decision_id", label: "Decision", type: "select", options: decisionOptions(data.decisions) },
-              { name: "title", label: "Title", required: true },
-              { name: "assigned_to", label: "Assignee", type: "select", options: userOptions(data.users), required: true },
-              { name: "due_date", label: "Due date", type: "date", required: true },
-              { name: "status", label: "Status", type: "select", options: actionStatusOptions, required: true },
+              { name: "decision_id", label: t("Decision"), type: "select", options: decisionOptions(data.decisions, t) },
+              { name: "title", label: t("Title"), required: true },
+              { name: "assigned_to", label: t("Assignee"), type: "select", options: userOptions(data.users, t), required: true },
+              { name: "due_date", label: t("Due date"), type: "date", required: true },
+              { name: "status", label: t("Status"), type: "select", options: actionStatusOptions, required: true },
             ]}
             onSubmit={async (values) => {
               await apiRequest<ActionItem>("/api/action-items", {
@@ -1013,13 +1030,14 @@ export function ActionsScreen() {
               await data.reload();
             }}
           />
-        ) : <ReadOnlyPanel message="Your role can view assigned action items, but cannot create or update action status." />}
+        ) : <ReadOnlyPanel message={t("Your role can view assigned action items, but cannot create or update action status.")} />}
       </div>
     </>
   );
 }
 
 function DocumentUploadForm({ tenants, reload }: { tenants: Tenant[]; reload: () => Promise<void> }) {
+  const { t } = useI18n();
   const [title, setTitle] = useState("");
   const [tenantId, setTenantId] = useState("");
   const [linkedEntityType, setLinkedEntityType] = useState("");
@@ -1031,7 +1049,7 @@ function DocumentUploadForm({ tenants, reload }: { tenants: Tenant[]; reload: ()
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!file) {
-      setError("Select a file to upload");
+      setError(t("Select a file to upload"));
       return;
     }
     const formData = new FormData();
@@ -1051,42 +1069,42 @@ function DocumentUploadForm({ tenants, reload }: { tenants: Tenant[]; reload: ()
       setFile(null);
       await reload();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
+      setError(err instanceof Error ? err.message : t("Upload failed"));
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <Panel title="Upload document">
+    <Panel title={t("Upload document")}>
       <form onSubmit={submit} className="grid gap-4">
         <label className="block">
-          <span className="text-xs font-semibold uppercase text-muted">Title</span>
-          <input value={title} onChange={(event) => setTitle(event.target.value)} className="mt-1 w-full rounded border border-line px-3 py-2 text-sm outline-none focus:border-primary" required />
+          <span className="text-xs font-semibold uppercase text-muted">{t("Title")}</span>
+          <input value={title} onChange={(event) => setTitle(event.target.value)} className="mt-1 w-full rounded-lg border border-line px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary-soft" required />
         </label>
         <label className="block">
-          <span className="text-xs font-semibold uppercase text-muted">Tenant</span>
-          <select value={tenantId} onChange={(event) => setTenantId(event.target.value)} className="mt-1 w-full rounded border border-line bg-white px-3 py-2 text-sm outline-none focus:border-primary">
-            <option value="">None</option>
+          <span className="text-xs font-semibold uppercase text-muted">{t("Tenant")}</span>
+          <select value={tenantId} onChange={(event) => setTenantId(event.target.value)} className="mt-1 w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary-soft">
+            <option value="">{t("None")}</option>
             {tenantOptions(tenants).map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
+              <option key={option.value} value={option.value}>{t(option.label)}</option>
             ))}
           </select>
         </label>
         <div className="grid gap-4 md:grid-cols-2">
           <label className="block">
-            <span className="text-xs font-semibold uppercase text-muted">Linked entity</span>
-            <input value={linkedEntityType} onChange={(event) => setLinkedEntityType(event.target.value)} placeholder="policy" className="mt-1 w-full rounded border border-line px-3 py-2 text-sm outline-none focus:border-primary" />
+            <span className="text-xs font-semibold uppercase text-muted">{t("Linked entity")}</span>
+            <input value={linkedEntityType} onChange={(event) => setLinkedEntityType(event.target.value)} placeholder="policy" className="mt-1 w-full rounded-lg border border-line px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary-soft" />
           </label>
           <label className="block">
-            <span className="text-xs font-semibold uppercase text-muted">Entity ID</span>
-            <input value={linkedEntityId} onChange={(event) => setLinkedEntityId(event.target.value)} className="mt-1 w-full rounded border border-line px-3 py-2 text-sm outline-none focus:border-primary" />
+            <span className="text-xs font-semibold uppercase text-muted">{t("Entity ID")}</span>
+            <input value={linkedEntityId} onChange={(event) => setLinkedEntityId(event.target.value)} className="mt-1 w-full rounded-lg border border-line px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary-soft" />
           </label>
         </div>
         <input type="file" onChange={(event) => setFile(event.target.files?.[0] ?? null)} className="text-sm text-muted" required />
-        {error ? <div className="rounded bg-red-50 px-3 py-2 text-sm text-danger">{error}</div> : null}
-        <button type="submit" disabled={submitting} className="rounded bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800 disabled:opacity-60">
-          {submitting ? "Uploading..." : "Upload"}
+        {error ? <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-danger">{error}</div> : null}
+        <button type="submit" disabled={submitting} className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-strong disabled:opacity-60">
+          {submitting ? t("Uploading...") : t("Upload")}
         </button>
       </form>
     </Panel>
@@ -1094,6 +1112,7 @@ function DocumentUploadForm({ tenants, reload }: { tenants: Tenant[]; reload: ()
 }
 
 export function DocumentsScreen() {
+  const { t, locale } = useI18n();
   const [documentOffset, setDocumentOffset] = useState(0);
   const data = usePortalData(documentResources, { documents: paginatedParams(documentOffset) });
   const permissions = useRolePermissions();
@@ -1101,22 +1120,22 @@ export function DocumentsScreen() {
 
   return (
     <>
-      <PageHeader title="Document Management" description="Upload and track policies, minutes, governance reports, and supporting evidence." />
+      <PageHeader title={t("Document Management")} description={t("Upload and track policies, minutes, governance reports, and supporting evidence.")} />
       <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
-        <Panel title="Document repository">
+        <Panel title={t("Document repository")}>
           <DataTable
             rows={data.documents}
-            empty="No documents uploaded."
+            empty={t("No documents uploaded.")}
             columns={[
-              { header: "Title", cell: (row) => <div><div className="font-semibold">{row.title}</div><div className="text-xs text-muted">{row.filename}</div></div> },
-              { header: "Size", cell: (row) => `${Math.ceil(row.file_size / 1024)} KB` },
-              { header: "Linked", cell: (row) => row.linked_entity_type ? `${row.linked_entity_type} #${row.linked_entity_id ?? "-"}` : "None" },
-              { header: "Uploaded", cell: (row) => new Date(row.created_at).toLocaleString() },
+              { header: t("Title"), cell: (row) => <div><div className="font-semibold">{row.title}</div><div className="text-xs text-muted">{row.filename}</div></div> },
+              { header: t("Size"), cell: (row) => `${Math.ceil(row.file_size / 1024)} KB` },
+              { header: t("Linked"), cell: (row) => row.linked_entity_type ? `${row.linked_entity_type} #${row.linked_entity_id ?? "-"}` : t("None") },
+              { header: t("Uploaded"), cell: (row) => new Date(row.created_at).toLocaleString(locale) },
               {
-                header: "File",
+                header: t("File"),
                 cell: (row) => (
                   <button className="text-xs font-semibold text-primary" onClick={() => void downloadApiFile(`/api/documents/${row.id}/download`, row.filename)}>
-                    Download
+                    {t("Download")}
                   </button>
                 ),
               },
@@ -1124,31 +1143,32 @@ export function DocumentsScreen() {
           />
           <ServerPager offset={documentOffset} pageSize={serverPageSize} rows={data.documents} total={data.totals.documents} onOffsetChange={setDocumentOffset} />
         </Panel>
-        {permissions.canUploadDocuments ? <DocumentUploadForm tenants={data.tenants} reload={data.reload} /> : <ReadOnlyPanel message="Your role can view and download visible documents, but cannot upload new evidence." />}
+        {permissions.canUploadDocuments ? <DocumentUploadForm tenants={data.tenants} reload={data.reload} /> : <ReadOnlyPanel message={t("Your role can view and download visible documents, but cannot upload new evidence.")} />}
       </div>
     </>
   );
 }
 
 export function NotificationsScreen() {
+  const { t } = useI18n();
   const data = usePortalData(notificationResources);
   const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
   return (
     <>
-      <PageHeader title="Notifications" description="Governance reminders, approval requests, due-date alerts, and read tracking." />
+      <PageHeader title={t("Notifications")} description={t("Governance reminders, approval requests, due-date alerts, and read tracking.")} />
       <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
-        <Panel title="Notification center">
+        <Panel title={t("Notification center")}>
           <DataTable
             rows={data.notifications}
-            empty="No notifications found."
+            empty={t("No notifications found.")}
             columns={[
-              { header: "Title", cell: (row) => <div><div className="font-semibold">{row.title}</div><div className="text-xs text-muted">{row.message}</div></div> },
-              { header: "Due", cell: (row) => row.due_date ?? "None" },
-              { header: "Status", cell: (row) => <StatusChip status={row.status} /> },
+              { header: t("Title"), cell: (row) => <div><div className="font-semibold">{row.title}</div><div className="text-xs text-muted">{row.message}</div></div> },
+              { header: t("Due"), cell: (row) => row.due_date ?? t("None") },
+              { header: t("Status"), cell: (row) => <StatusChip status={row.status} /> },
               {
-                header: "Actions",
+                header: t("Actions"),
                 cell: (row) => (
                   <div className="flex gap-3">
                     <button
@@ -1158,7 +1178,7 @@ export function NotificationsScreen() {
                         await data.reload();
                       }}
                     >
-                      Mark read
+                      {t("Mark read")}
                     </button>
                     {permissions.canDispatchNotifications ? (
                       <button
@@ -1168,7 +1188,7 @@ export function NotificationsScreen() {
                           await data.reload();
                         }}
                       >
-                        Dispatch
+                        {t("Dispatch")}
                       </button>
                     ) : null}
                   </div>
@@ -1179,13 +1199,13 @@ export function NotificationsScreen() {
         </Panel>
         {permissions.canDispatchNotifications ? (
           <CompactForm
-            title="Create alert"
+            title={t("Create alert")}
             initialValues={{ title: "", message: "", user_id: "", due_date: nextMonth() }}
             fields={[
-              { name: "title", label: "Title", required: true },
-              { name: "user_id", label: "User", type: "select", options: userOptions(data.users) },
-              { name: "due_date", label: "Due date", type: "date" },
-              { name: "message", label: "Message", type: "textarea", required: true },
+              { name: "title", label: t("Title"), required: true },
+              { name: "user_id", label: t("User"), type: "select", options: userOptions(data.users, t) },
+              { name: "due_date", label: t("Due date"), type: "date" },
+              { name: "message", label: t("Message"), type: "textarea", required: true },
             ]}
             onSubmit={async (values) => {
               await apiRequest<NotificationRecord>("/api/notifications", {
@@ -1195,48 +1215,49 @@ export function NotificationsScreen() {
               await data.reload();
             }}
           />
-        ) : <ReadOnlyPanel message="Your role can read notifications, but cannot create or dispatch alerts." />}
+        ) : <ReadOnlyPanel message={t("Your role can read notifications, but cannot create or dispatch alerts.")} />}
       </div>
     </>
   );
 }
 
 export function CalendarScreen() {
+  const { t } = useI18n();
   const data = usePortalData(calendarResources);
   const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
   return (
     <>
-      <PageHeader title="Governance Calendar" description="Track reviews, meetings, audits, renewals, and accountable owners." />
+      <PageHeader title={t("Governance Calendar")} description={t("Track reviews, meetings, audits, renewals, and accountable owners.")} />
       <div className="mb-4">
-        <button className="rounded border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-slate-50" onClick={() => void downloadApiFile("/api/calendar-events/export.ics", "governance-calendar.ics")}>
-          Export ICS
+        <button className="rounded-lg border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-canvas" onClick={() => void downloadApiFile("/api/calendar-events/export.ics", "governance-calendar.ics")}>
+          {t("Export ICS")}
         </button>
       </div>
       <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
-        <Panel title="Calendar events">
+        <Panel title={t("Calendar events")}>
           <DataTable
             rows={data.calendarEvents}
-            empty="No calendar events found."
+            empty={t("No calendar events found.")}
             columns={[
-              { header: "Event", cell: (row) => <div><div className="font-semibold">{row.title}</div><div className="text-xs text-muted">{row.description}</div></div> },
-              { header: "Type", cell: (row) => row.event_type },
-              { header: "Date", cell: (row) => row.event_date },
-              { header: "Owner", cell: (row) => data.users.find((user) => user.id === row.owner_id)?.name ?? "Unassigned" },
+              { header: t("Event"), cell: (row) => <div><div className="font-semibold">{row.title}</div><div className="text-xs text-muted">{row.description}</div></div> },
+              { header: t("Type"), cell: (row) => row.event_type },
+              { header: t("Date"), cell: (row) => row.event_date },
+              { header: t("Owner"), cell: (row) => data.users.find((user) => user.id === row.owner_id)?.name ?? t("Unassigned") },
             ]}
           />
         </Panel>
         {permissions.canManageGovernance ? (
           <CompactForm
-            title="Create event"
+            title={t("Create event")}
             initialValues={{ title: "", event_type: "meeting", event_date: nextMonth(), owner_id: "", description: "" }}
             fields={[
-              { name: "title", label: "Title", required: true },
-              { name: "event_type", label: "Type", type: "select", options: eventTypeOptions, required: true },
-              { name: "event_date", label: "Date", type: "date", required: true },
-              { name: "owner_id", label: "Owner", type: "select", options: userOptions(data.users) },
-              { name: "description", label: "Description", type: "textarea" },
+              { name: "title", label: t("Title"), required: true },
+              { name: "event_type", label: t("Type"), type: "select", options: eventTypeOptions, required: true },
+              { name: "event_date", label: t("Date"), type: "date", required: true },
+              { name: "owner_id", label: t("Owner"), type: "select", options: userOptions(data.users, t) },
+              { name: "description", label: t("Description"), type: "textarea" },
             ]}
             onSubmit={async (values) => {
               await apiRequest<CalendarEvent>("/api/calendar-events", {
@@ -1246,43 +1267,44 @@ export function CalendarScreen() {
               await data.reload();
             }}
           />
-        ) : <ReadOnlyPanel message="Your role can view and export the governance calendar, but cannot create events." />}
+        ) : <ReadOnlyPanel message={t("Your role can view and export the governance calendar, but cannot create events.")} />}
       </div>
     </>
   );
 }
 
 export function WorkflowsScreen() {
+  const { t } = useI18n();
   const data = usePortalData(workflowResources);
   const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
   return (
     <>
-      <PageHeader title="Approval Workflows" description="Configure policy approval steps, approvers, sequence, decisions, and comments." />
+      <PageHeader title={t("Approval Workflows")} description={t("Configure policy approval steps, approvers, sequence, decisions, and comments.")} />
       <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
-        <Panel title="Workflow steps">
+        <Panel title={t("Workflow steps")}>
           <DataTable
             rows={data.workflowSteps}
-            empty="No workflow steps configured."
+            empty={t("No workflow steps configured.")}
             columns={[
-              { header: "Policy", cell: (row) => data.policies.find((policy) => policy.id === row.policy_id)?.title ?? `Policy #${row.policy_id}` },
-              { header: "Step", cell: (row) => `${row.sequence}. ${row.step_name}` },
-              { header: "Approver", cell: (row) => data.users.find((user) => user.id === row.approver_id)?.name ?? "Unknown" },
-              { header: "Status", cell: (row) => <StatusChip status={row.status} /> },
+              { header: t("Policy"), cell: (row) => data.policies.find((policy) => policy.id === row.policy_id)?.title ?? t("Policy #{id}", { id: row.policy_id }) },
+              { header: t("Step"), cell: (row) => `${row.sequence}. ${row.step_name}` },
+              { header: t("Approver"), cell: (row) => data.users.find((user) => user.id === row.approver_id)?.name ?? t("Unknown") },
+              { header: t("Status"), cell: (row) => <StatusChip status={row.status} /> },
               ...(permissions.canManageGovernance ? [{
-                header: "Update",
+                header: t("Update"),
                 cell: (row: WorkflowStep) => (
                   <select
                     value={row.status}
-                    className="rounded border border-line bg-white px-2 py-1 text-xs"
+                    className="rounded-lg border border-line bg-white px-2 py-1 text-xs"
                     onChange={async (event) => {
                       await apiRequest<WorkflowStep>(`/api/workflow-steps/${row.id}`, { method: "PUT", body: JSON.stringify({ status: event.target.value }) });
                       await data.reload();
                     }}
                   >
                     {workflowStatusOptions.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
+                      <option key={option.value} value={option.value}>{t(option.label)}</option>
                     ))}
                   </select>
                 ),
@@ -1292,15 +1314,15 @@ export function WorkflowsScreen() {
         </Panel>
         {permissions.canManageGovernance ? (
           <CompactForm
-            title="Add approval step"
+            title={t("Add approval step")}
             initialValues={{ policy_id: String(data.policies[0]?.id ?? ""), step_name: "Review", approver_id: String(data.users[0]?.id ?? ""), sequence: "1", status: "pending", comments: "" }}
             fields={[
-              { name: "policy_id", label: "Policy", type: "select", options: policyOptions(data.policies), required: true },
-              { name: "step_name", label: "Step name", required: true },
-              { name: "approver_id", label: "Approver", type: "select", options: userOptions(data.users), required: true },
-              { name: "sequence", label: "Sequence", required: true },
-              { name: "status", label: "Status", type: "select", options: workflowStatusOptions, required: true },
-              { name: "comments", label: "Comments", type: "textarea" },
+              { name: "policy_id", label: t("Policy"), type: "select", options: policyOptions(data.policies), required: true },
+              { name: "step_name", label: t("Step name"), required: true },
+              { name: "approver_id", label: t("Approver"), type: "select", options: userOptions(data.users, t), required: true },
+              { name: "sequence", label: t("Sequence"), required: true },
+              { name: "status", label: t("Status"), type: "select", options: workflowStatusOptions, required: true },
+              { name: "comments", label: t("Comments"), type: "textarea" },
             ]}
             onSubmit={async (values) => {
               await apiRequest<WorkflowStep>("/api/workflow-steps", {
@@ -1310,44 +1332,45 @@ export function WorkflowsScreen() {
               await data.reload();
             }}
           />
-        ) : <ReadOnlyPanel message="Your role can view workflow status, but cannot add or update approval steps." />}
+        ) : <ReadOnlyPanel message={t("Your role can view workflow status, but cannot add or update approval steps.")} />}
       </div>
     </>
   );
 }
 
 export function ComplianceScreen() {
+  const { t } = useI18n();
   const data = usePortalData(complianceResources);
   const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
   return (
     <>
-      <PageHeader title="Compliance Obligations" description="Track internal, regulatory, and governance obligations with owners, due dates, and evidence." />
+      <PageHeader title={t("Compliance Obligations")} description={t("Track internal, regulatory, and governance obligations with owners, due dates, and evidence.")} />
       <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
-        <Panel title="Obligation register">
+        <Panel title={t("Obligation register")}>
           <DataTable
             rows={data.complianceObligations}
-            empty="No compliance obligations found."
+            empty={t("No compliance obligations found.")}
             columns={[
-              { header: "Obligation", cell: (row) => <div><div className="font-semibold">{row.title}</div><div className="text-xs text-muted">{row.description}</div></div> },
-              { header: "Source", cell: (row) => row.source },
-              { header: "Owner", cell: (row) => data.users.find((user) => user.id === row.owner_id)?.name ?? "Unassigned" },
-              { header: "Due", cell: (row) => row.due_date ?? "None" },
-              { header: "Status", cell: (row) => <StatusChip status={row.status} /> },
+              { header: t("Obligation"), cell: (row) => <div><div className="font-semibold">{row.title}</div><div className="text-xs text-muted">{row.description}</div></div> },
+              { header: t("Source"), cell: (row) => row.source },
+              { header: t("Owner"), cell: (row) => data.users.find((user) => user.id === row.owner_id)?.name ?? t("Unassigned") },
+              { header: t("Due"), cell: (row) => row.due_date ?? t("None") },
+              { header: t("Status"), cell: (row) => <StatusChip status={row.status} /> },
               ...(permissions.canManageGovernance ? [{
-                header: "Update",
+                header: t("Update"),
                 cell: (row: ComplianceObligation) => (
                   <select
                     value={row.status}
-                    className="rounded border border-line bg-white px-2 py-1 text-xs"
+                    className="rounded-lg border border-line bg-white px-2 py-1 text-xs"
                     onChange={async (event) => {
                       await apiRequest<ComplianceObligation>(`/api/compliance-obligations/${row.id}`, { method: "PUT", body: JSON.stringify({ status: event.target.value }) });
                       await data.reload();
                     }}
                   >
                     {complianceStatusOptions.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
+                      <option key={option.value} value={option.value}>{t(option.label)}</option>
                     ))}
                   </select>
                 ),
@@ -1357,16 +1380,16 @@ export function ComplianceScreen() {
         </Panel>
         {permissions.canManageGovernance ? (
           <CompactForm
-            title="Create obligation"
+            title={t("Create obligation")}
             initialValues={{ tenant_id: String(data.tenants[0]?.id ?? ""), title: "", source: "internal", owner_id: "", due_date: nextMonth(), status: "not_started", description: "" }}
             fields={[
-              { name: "tenant_id", label: "Tenant", type: "select", options: tenantOptions(data.tenants) },
-              { name: "title", label: "Title", required: true },
-              { name: "source", label: "Source", required: true },
-              { name: "owner_id", label: "Owner", type: "select", options: userOptions(data.users) },
-              { name: "due_date", label: "Due date", type: "date" },
-              { name: "status", label: "Status", type: "select", options: complianceStatusOptions, required: true },
-              { name: "description", label: "Description", type: "textarea" },
+              { name: "tenant_id", label: t("Tenant"), type: "select", options: tenantOptions(data.tenants) },
+              { name: "title", label: t("Title"), required: true },
+              { name: "source", label: t("Source"), required: true },
+              { name: "owner_id", label: t("Owner"), type: "select", options: userOptions(data.users, t) },
+              { name: "due_date", label: t("Due date"), type: "date" },
+              { name: "status", label: t("Status"), type: "select", options: complianceStatusOptions, required: true },
+              { name: "description", label: t("Description"), type: "textarea" },
             ]}
             onSubmit={async (values) => {
               await apiRequest<ComplianceObligation>("/api/compliance-obligations", {
@@ -1381,44 +1404,45 @@ export function ComplianceScreen() {
               await data.reload();
             }}
           />
-        ) : <ReadOnlyPanel message="Your role can view compliance obligations, but cannot create or update them." />}
+        ) : <ReadOnlyPanel message={t("Your role can view compliance obligations, but cannot create or update them.")} />}
       </div>
     </>
   );
 }
 
 export function RisksScreen() {
+  const { t } = useI18n();
   const data = usePortalData(riskResources);
   const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
   return (
     <>
-      <PageHeader title="Risk Register" description="Track governance, compliance, operational, and vendor risks with severity and mitigation plans." />
+      <PageHeader title={t("Risk Register")} description={t("Track governance, compliance, operational, and vendor risks with severity and mitigation plans.")} />
       <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
-        <Panel title="Risk register">
+        <Panel title={t("Risk register")}>
           <DataTable
             rows={data.risks}
-            empty="No risks found."
+            empty={t("No risks found.")}
             columns={[
-              { header: "Risk", cell: (row) => <div><div className="font-semibold">{row.title}</div><div className="text-xs text-muted">{row.mitigation_plan}</div></div> },
-              { header: "Category", cell: (row) => row.category },
-              { header: "Severity", cell: (row) => <StatusChip status={row.severity} /> },
-              { header: "Status", cell: (row) => <StatusChip status={row.status} /> },
-              { header: "Owner", cell: (row) => data.users.find((user) => user.id === row.owner_id)?.name ?? "Unassigned" },
+              { header: t("Risk"), cell: (row) => <div><div className="font-semibold">{row.title}</div><div className="text-xs text-muted">{row.mitigation_plan}</div></div> },
+              { header: t("Category"), cell: (row) => row.category },
+              { header: t("Severity"), cell: (row) => <StatusChip status={row.severity} /> },
+              { header: t("Status"), cell: (row) => <StatusChip status={row.status} /> },
+              { header: t("Owner"), cell: (row) => data.users.find((user) => user.id === row.owner_id)?.name ?? t("Unassigned") },
               ...(permissions.canManageGovernance ? [{
-                header: "Update",
+                header: t("Update"),
                 cell: (row: Risk) => (
                   <select
                     value={row.status}
-                    className="rounded border border-line bg-white px-2 py-1 text-xs"
+                    className="rounded-lg border border-line bg-white px-2 py-1 text-xs"
                     onChange={async (event) => {
                       await apiRequest<Risk>(`/api/risks/${row.id}`, { method: "PUT", body: JSON.stringify({ status: event.target.value }) });
                       await data.reload();
                     }}
                   >
                     {riskStatusOptions.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
+                      <option key={option.value} value={option.value}>{t(option.label)}</option>
                     ))}
                   </select>
                 ),
@@ -1428,16 +1452,16 @@ export function RisksScreen() {
         </Panel>
         {permissions.canManageGovernance ? (
           <CompactForm
-            title="Create risk"
+            title={t("Create risk")}
             initialValues={{ tenant_id: String(data.tenants[0]?.id ?? ""), title: "", category: "governance", severity: "medium", status: "open", owner_id: "", mitigation_plan: "" }}
             fields={[
-              { name: "tenant_id", label: "Tenant", type: "select", options: tenantOptions(data.tenants) },
-              { name: "title", label: "Title", required: true },
-              { name: "category", label: "Category", required: true },
-              { name: "severity", label: "Severity", type: "select", options: riskSeverityOptions, required: true },
-              { name: "status", label: "Status", type: "select", options: riskStatusOptions, required: true },
-              { name: "owner_id", label: "Owner", type: "select", options: userOptions(data.users) },
-              { name: "mitigation_plan", label: "Mitigation plan", type: "textarea" },
+              { name: "tenant_id", label: t("Tenant"), type: "select", options: tenantOptions(data.tenants) },
+              { name: "title", label: t("Title"), required: true },
+              { name: "category", label: t("Category"), required: true },
+              { name: "severity", label: t("Severity"), type: "select", options: riskSeverityOptions, required: true },
+              { name: "status", label: t("Status"), type: "select", options: riskStatusOptions, required: true },
+              { name: "owner_id", label: t("Owner"), type: "select", options: userOptions(data.users, t) },
+              { name: "mitigation_plan", label: t("Mitigation plan"), type: "textarea" },
             ]}
             onSubmit={async (values) => {
               await apiRequest<Risk>("/api/risks", {
@@ -1451,60 +1475,61 @@ export function RisksScreen() {
               await data.reload();
             }}
           />
-        ) : <ReadOnlyPanel message="Your role can view risks, but cannot create or update risk records." />}
+        ) : <ReadOnlyPanel message={t("Your role can view risks, but cannot create or update risk records.")} />}
       </div>
     </>
   );
 }
 
 export function ReportsScreen() {
+  const { t } = useI18n();
   const data = usePortalData(reportResources);
   const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
   const rows = [
-    { metric: "Open actions", value: data.reports?.open_actions ?? 0, interpretation: "Items requiring owner follow-up" },
-    { metric: "Overdue items", value: data.reports?.overdue_items ?? 0, interpretation: "Governance commitments past due date" },
-    { metric: "Published policies", value: data.reports?.published_policies ?? 0, interpretation: "Approved and live policy documents" },
-    { metric: "Pending approvals", value: data.reports?.pending_approvals ?? 0, interpretation: "Policies in review or approval workflow" },
-    { metric: "Upcoming meetings", value: data.reports?.upcoming_meetings ?? 0, interpretation: "Scheduled committee or board sessions" },
-    { metric: "Unread notifications", value: data.reports?.unread_notifications ?? 0, interpretation: "Alerts still requiring user attention" },
-    { metric: "Documents", value: data.reports?.documents ?? 0, interpretation: "Uploaded governance evidence and records" },
-    { metric: "Active integrations", value: data.reports?.active_integrations ?? 0, interpretation: "Configured system connections" },
+    { metric: t("Open actions"), value: data.reports?.open_actions ?? 0, interpretation: t("Items requiring owner follow-up") },
+    { metric: t("Overdue items"), value: data.reports?.overdue_items ?? 0, interpretation: t("Governance commitments past due date") },
+    { metric: t("Published policies"), value: data.reports?.published_policies ?? 0, interpretation: t("Approved and live policy documents") },
+    { metric: t("Pending approvals"), value: data.reports?.pending_approvals ?? 0, interpretation: t("Policies in review or approval workflow") },
+    { metric: t("Upcoming meetings"), value: data.reports?.upcoming_meetings ?? 0, interpretation: t("Scheduled committee or board sessions") },
+    { metric: t("Unread notifications"), value: data.reports?.unread_notifications ?? 0, interpretation: t("Alerts still requiring user attention") },
+    { metric: t("Documents"), value: data.reports?.documents ?? 0, interpretation: t("Uploaded governance evidence and records") },
+    { metric: t("Active integrations"), value: data.reports?.active_integrations ?? 0, interpretation: t("Configured system connections") },
   ];
 
   return (
     <>
-      <PageHeader title="Governance Reports" description="Executive reporting across policy lifecycle, governance operations, and control readiness." />
+      <PageHeader title={t("Governance Reports")} description={t("Executive reporting across policy lifecycle, governance operations, and control readiness.")} />
       {permissions.canExportReports ? (
         <div className="mb-4">
-          <button className="rounded border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-slate-50" onClick={() => void downloadApiFile("/api/reports/export", "governance-report.csv")}>
-            Export report CSV
+          <button className="rounded-lg border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-canvas" onClick={() => void downloadApiFile("/api/reports/export", "governance-report.csv")}>
+            {t("Export report CSV")}
           </button>
         </div>
       ) : null}
       <div className="mb-6 grid gap-6 xl:grid-cols-2">
-        <Panel title="Policy lifecycle">
+        <Panel title={t("Policy lifecycle")}>
           <MiniBarChart rows={data.reportBreakdown.policy_status} />
         </Panel>
-        <Panel title="Compliance status">
+        <Panel title={t("Compliance status")}>
           <MiniBarChart rows={data.reportBreakdown.compliance_status} />
         </Panel>
-        <Panel title="Risk severity">
+        <Panel title={t("Risk severity")}>
           <MiniBarChart rows={data.reportBreakdown.risk_severity} />
         </Panel>
-        <Panel title="Upcoming meetings by month">
+        <Panel title={t("Upcoming meetings by month")}>
           <MiniBarChart rows={data.reportBreakdown.upcoming_meetings_by_month} />
         </Panel>
       </div>
-      <Panel title="KPI summary">
+      <Panel title={t("KPI summary")}>
         <DataTable
           rows={rows}
-          empty="No report data available."
+          empty={t("No report data available.")}
           columns={[
-            { header: "Metric", cell: (row) => row.metric },
-            { header: "Value", cell: (row) => <span className="text-lg font-semibold">{row.value}</span> },
-            { header: "Interpretation", cell: (row) => row.interpretation },
+            { header: t("Metric"), cell: (row) => row.metric },
+            { header: t("Value"), cell: (row) => <span className="text-lg font-semibold">{row.value}</span> },
+            { header: t("Interpretation"), cell: (row) => row.interpretation },
           ]}
         />
       </Panel>
@@ -1513,65 +1538,67 @@ export function ReportsScreen() {
 }
 
 export function TenantsScreen() {
+  const { t, locale } = useI18n();
   const data = usePortalData(tenantResources);
   const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
   return (
     <>
-      <PageHeader title="Multi-Entity Governance" description="Manage companies, subsidiaries, and tenant-level governance boundaries." />
+      <PageHeader title={t("Multi-Entity Governance")} description={t("Manage companies, subsidiaries, and tenant-level governance boundaries.")} />
       <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
-        <Panel title="Tenants">
+        <Panel title={t("Tenants")}>
           <DataTable
             rows={data.tenants}
-            empty="No tenants found."
+            empty={t("No tenants found.")}
             columns={[
-              { header: "Name", cell: (row) => row.name },
-              { header: "Domain", cell: (row) => row.domain ?? "Not set" },
-              { header: "Status", cell: (row) => row.is_active ? "Active" : "Inactive" },
-              { header: "Created", cell: (row) => new Date(row.created_at).toLocaleDateString() },
+              { header: t("Name"), cell: (row) => row.name },
+              { header: t("Domain"), cell: (row) => row.domain ?? t("Not set") },
+              { header: t("Status"), cell: (row) => row.is_active ? t("Active") : t("Inactive") },
+              { header: t("Created"), cell: (row) => new Date(row.created_at).toLocaleDateString(locale) },
             ]}
           />
         </Panel>
         {permissions.canManageAdmin ? (
           <CompactForm
-            title="Create tenant"
+            title={t("Create tenant")}
             initialValues={{ name: "", domain: "" }}
             fields={[
-              { name: "name", label: "Name", required: true },
-              { name: "domain", label: "Domain" },
+              { name: "name", label: t("Name"), required: true },
+              { name: "domain", label: t("Domain") },
             ]}
             onSubmit={async (values) => {
               await apiRequest<Tenant>("/api/tenants", { method: "POST", body: JSON.stringify({ name: values.name, domain: values.domain || null, is_active: true }) });
               await data.reload();
             }}
           />
-        ) : <ReadOnlyPanel message="Only Admin users can create tenant records." />}
+        ) : <ReadOnlyPanel message={t("Only Admin users can create tenant records.")} />}
       </div>
     </>
   );
 }
 
 export function IntegrationsScreen() {
+  const { t } = useI18n();
   const data = usePortalData(integrationResources);
   const permissions = useRolePermissions();
   if (data.state !== "ready") return <LoadingOrError state={data.state} error={data.error} />;
 
   return (
     <>
-      <PageHeader title="Risk and Compliance Integrations" description="Configure external risk register, compliance portal, vendor risk, and reporting connections." />
+      <PageHeader title={t("Risk and Compliance Integrations")} description={t("Configure external risk register, compliance portal, vendor risk, and reporting connections.")} />
       <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
-        <Panel title="Integration connections">
+        <Panel title={t("Integration connections")}>
           <DataTable
             rows={data.integrations}
-            empty="No integrations configured."
+            empty={t("No integrations configured.")}
             columns={[
-              { header: "Name", cell: (row) => row.name },
-              { header: "Type", cell: (row) => row.integration_type },
-              { header: "Endpoint", cell: (row) => row.endpoint_url ?? "Manual" },
-              { header: "Status", cell: (row) => <StatusChip status={row.status} /> },
+              { header: t("Name"), cell: (row) => row.name },
+              { header: t("Type"), cell: (row) => row.integration_type },
+              { header: t("Endpoint"), cell: (row) => row.endpoint_url ?? t("Manual") },
+              { header: t("Status"), cell: (row) => <StatusChip status={row.status} /> },
               ...(permissions.canManageAdmin ? [{
-                header: "Sync",
+                header: t("Sync"),
                 cell: (row: IntegrationConnection) => (
                   <button
                     className="text-xs font-semibold text-primary"
@@ -1580,7 +1607,7 @@ export function IntegrationsScreen() {
                       await data.reload();
                     }}
                   >
-                    Run
+                    {t("Run")}
                   </button>
                 ),
               }] : []),
@@ -1589,14 +1616,14 @@ export function IntegrationsScreen() {
         </Panel>
         {permissions.canManageAdmin ? (
           <CompactForm
-            title="Create integration"
+            title={t("Create integration")}
             initialValues={{ tenant_id: String(data.tenants[0]?.id ?? ""), name: "", integration_type: "compliance", endpoint_url: "", status: "configured" }}
             fields={[
-              { name: "tenant_id", label: "Tenant", type: "select", options: tenantOptions(data.tenants) },
-              { name: "name", label: "Name", required: true },
-              { name: "integration_type", label: "Type", required: true },
-              { name: "endpoint_url", label: "Endpoint URL" },
-              { name: "status", label: "Status", type: "select", options: integrationStatusOptions, required: true },
+              { name: "tenant_id", label: t("Tenant"), type: "select", options: tenantOptions(data.tenants) },
+              { name: "name", label: t("Name"), required: true },
+              { name: "integration_type", label: t("Type"), required: true },
+              { name: "endpoint_url", label: t("Endpoint URL") },
+              { name: "status", label: t("Status"), type: "select", options: integrationStatusOptions, required: true },
             ]}
             onSubmit={async (values) => {
               await apiRequest<IntegrationConnection>("/api/integrations", {
@@ -1606,13 +1633,14 @@ export function IntegrationsScreen() {
               await data.reload();
             }}
           />
-        ) : <ReadOnlyPanel message="Only Admin users can configure or sync integrations." />}
+        ) : <ReadOnlyPanel message={t("Only Admin users can configure or sync integrations.")} />}
       </div>
     </>
   );
 }
 
 export function SSOScreen() {
+  const { t } = useI18n();
   const data = usePortalData(ssoResources);
   const permissions = useRolePermissions();
   const [ssoMessage, setSsoMessage] = useState<string | null>(null);
@@ -1620,19 +1648,19 @@ export function SSOScreen() {
 
   return (
     <>
-      <PageHeader title="SSO Providers" description="Configure SAML or OIDC identity providers for enterprise authentication handoff." />
+      <PageHeader title={t("SSO Providers")} description={t("Configure SAML or OIDC identity providers for enterprise authentication handoff.")} />
       <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
-        <Panel title="Identity providers">
+        <Panel title={t("Identity providers")}>
           <DataTable
             rows={data.ssoProviders}
-            empty="No SSO providers configured."
+            empty={t("No SSO providers configured.")}
             columns={[
-              { header: "Name", cell: (row) => row.name },
-              { header: "Type", cell: (row) => row.provider_type },
-              { header: "Metadata", cell: (row) => row.metadata_url ?? "Not set" },
-              { header: "Status", cell: (row) => <StatusChip status={row.status} /> },
+              { header: t("Name"), cell: (row) => row.name },
+              { header: t("Type"), cell: (row) => row.provider_type },
+              { header: t("Metadata"), cell: (row) => row.metadata_url ?? t("Not set") },
+              { header: t("Status"), cell: (row) => <StatusChip status={row.status} /> },
               ...(permissions.canManageAdmin ? [{
-                header: "Test",
+                header: t("Test"),
                 cell: (row: SSOProvider) => (
                   <button
                     className="text-xs font-semibold text-primary"
@@ -1641,12 +1669,12 @@ export function SSOScreen() {
                       setSsoMessage(`${row.name}: ${response.status} - ${response.message}`);
                     }}
                   >
-                    Start
+                    {t("Start")}
                   </button>
                 ),
               },
               {
-                header: "Callback",
+                header: t("Callback"),
                 cell: (row: SSOProvider) => (
                   <button
                     className="text-xs font-semibold text-primary"
@@ -1661,24 +1689,24 @@ export function SSOScreen() {
                       await data.reload();
                     }}
                   >
-                    Verify
+                    {t("Verify")}
                   </button>
                 ),
               }] : []),
             ]}
           />
-          {ssoMessage ? <div className="mt-3 rounded border border-line bg-slate-50 px-3 py-2 text-sm text-muted">{ssoMessage}</div> : null}
+          {ssoMessage ? <div className="mt-3 rounded-lg border border-line bg-canvas px-3 py-2 text-sm text-muted">{ssoMessage}</div> : null}
         </Panel>
         {permissions.canManageAdmin ? (
           <CompactForm
-            title="Create provider"
+            title={t("Create provider")}
             initialValues={{ tenant_id: String(data.tenants[0]?.id ?? ""), name: "", provider_type: "saml", metadata_url: "", status: "disabled" }}
             fields={[
-              { name: "tenant_id", label: "Tenant", type: "select", options: tenantOptions(data.tenants) },
-              { name: "name", label: "Name", required: true },
-              { name: "provider_type", label: "Provider type", required: true },
-              { name: "metadata_url", label: "Metadata URL" },
-              { name: "status", label: "Status", type: "select", options: ssoStatusOptions, required: true },
+              { name: "tenant_id", label: t("Tenant"), type: "select", options: tenantOptions(data.tenants) },
+              { name: "name", label: t("Name"), required: true },
+              { name: "provider_type", label: t("Provider type"), required: true },
+              { name: "metadata_url", label: t("Metadata URL") },
+              { name: "status", label: t("Status"), type: "select", options: ssoStatusOptions, required: true },
             ]}
             onSubmit={async (values) => {
               await apiRequest<SSOProvider>("/api/sso-providers", {
@@ -1688,13 +1716,14 @@ export function SSOScreen() {
               await data.reload();
             }}
           />
-        ) : <ReadOnlyPanel message="Only Admin users can configure SSO providers." />}
+        ) : <ReadOnlyPanel message={t("Only Admin users can configure SSO providers.")} />}
       </div>
     </>
   );
 }
 
 export function AuditLogsScreen() {
+  const { t, locale } = useI18n();
   const [auditOffset, setAuditOffset] = useState(0);
   const data = usePortalData(auditLogResources, { auditLogs: paginatedParams(auditOffset) });
   const permissions = useRolePermissions();
@@ -1724,21 +1753,21 @@ export function AuditLogsScreen() {
 
   return (
     <>
-      <PageHeader title="Audit Logs" description="Immutable audit trail for user actions, record changes, and governance activity." />
+      <PageHeader title={t("Audit Logs")} description={t("Immutable audit trail for user actions, record changes, and governance activity.")} />
       {permissions.canAudit ? (
         <>
-          <div className="mb-4 grid gap-3 rounded border border-line bg-panel p-4 md:grid-cols-6">
-            <input value={filters.action} onChange={(event) => { setAuditOffset(0); setFilters((current) => ({ ...current, action: event.target.value })); }} placeholder="Action" className="rounded border border-line px-3 py-2 text-sm outline-none focus:border-primary" />
-            <input value={filters.entity_type} onChange={(event) => { setAuditOffset(0); setFilters((current) => ({ ...current, entity_type: event.target.value })); }} placeholder="Entity type" className="rounded border border-line px-3 py-2 text-sm outline-none focus:border-primary" />
-            <select value={filters.actor_id} onChange={(event) => { setAuditOffset(0); setFilters((current) => ({ ...current, actor_id: event.target.value })); }} className="rounded border border-line bg-white px-3 py-2 text-sm outline-none focus:border-primary">
-              <option value="">All actors</option>
+          <div className="mb-4 grid gap-3 rounded-lg border border-line bg-panel p-4 md:grid-cols-6">
+            <input value={filters.action} onChange={(event) => { setAuditOffset(0); setFilters((current) => ({ ...current, action: event.target.value })); }} placeholder={t("Action")} className="rounded-lg border border-line px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary-soft" />
+            <input value={filters.entity_type} onChange={(event) => { setAuditOffset(0); setFilters((current) => ({ ...current, entity_type: event.target.value })); }} placeholder={t("Entity type")} className="rounded-lg border border-line px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary-soft" />
+            <select value={filters.actor_id} onChange={(event) => { setAuditOffset(0); setFilters((current) => ({ ...current, actor_id: event.target.value })); }} className="rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary-soft">
+              <option value="">{t("All actors")}</option>
               {data.users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}
             </select>
-            <input value={filters.date_from} onChange={(event) => { setAuditOffset(0); setFilters((current) => ({ ...current, date_from: event.target.value })); }} type="date" className="rounded border border-line px-3 py-2 text-sm outline-none focus:border-primary" />
-            <input value={filters.date_to} onChange={(event) => { setAuditOffset(0); setFilters((current) => ({ ...current, date_to: event.target.value })); }} type="date" className="rounded border border-line px-3 py-2 text-sm outline-none focus:border-primary" />
+            <input value={filters.date_from} onChange={(event) => { setAuditOffset(0); setFilters((current) => ({ ...current, date_from: event.target.value })); }} type="date" className="rounded-lg border border-line px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary-soft" />
+            <input value={filters.date_to} onChange={(event) => { setAuditOffset(0); setFilters((current) => ({ ...current, date_to: event.target.value })); }} type="date" className="rounded-lg border border-line px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary-soft" />
             <div className="flex gap-2">
               <button
-                className="rounded bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-teal-800"
+                className="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-primary-strong"
                 onClick={async () => {
                   setAuditOffset(0);
                   const response = await apiRequestWithMeta<AuditLog[]>(buildAuditPath(0));
@@ -1746,29 +1775,29 @@ export function AuditLogsScreen() {
                   setFilteredTotal(response.totalCount);
                 }}
               >
-                Apply
+                {t("Apply")}
               </button>
-              <button className="rounded border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-slate-50" onClick={() => { setAuditOffset(0); setFilters({ action: "", entity_type: "", actor_id: "", date_from: "", date_to: "" }); setFilteredLogs(null); setFilteredTotal(null); }}>
-                Reset
+              <button className="rounded-lg border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-canvas" onClick={() => { setAuditOffset(0); setFilters({ action: "", entity_type: "", actor_id: "", date_from: "", date_to: "" }); setFilteredLogs(null); setFilteredTotal(null); }}>
+                {t("Reset")}
               </button>
             </div>
           </div>
           <div className="mb-4">
-            <button className="rounded border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-slate-50" onClick={() => void downloadApiFile(auditExportPath, "audit-logs.csv")}>
-              Export CSV
+            <button className="rounded-lg border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-canvas" onClick={() => void downloadApiFile(auditExportPath, "audit-logs.csv")}>
+              {t("Export CSV")}
             </button>
           </div>
         </>
       ) : null}
-      <Panel title="Recent audit events">
+      <Panel title={t("Recent audit events")}>
         <DataTable
           rows={auditRows}
-          empty="No audit logs found."
+          empty={t("No audit logs found.")}
           columns={[
-            { header: "Action", cell: (row) => row.action },
-            { header: "Entity", cell: (row) => `${row.entity_type} #${row.entity_id ?? "-"}` },
-            { header: "Actor", cell: (row) => data.users.find((user) => user.id === row.actor_id)?.name ?? "System" },
-            { header: "Created", cell: (row) => new Date(row.created_at).toLocaleString() },
+            { header: t("Action"), cell: (row) => row.action },
+            { header: t("Entity"), cell: (row) => `${row.entity_type} #${row.entity_id ?? "-"}` },
+            { header: t("Actor"), cell: (row) => data.users.find((user) => user.id === row.actor_id)?.name ?? t("System") },
+            { header: t("Created"), cell: (row) => new Date(row.created_at).toLocaleString(locale) },
           ]}
         />
         <ServerPager
@@ -1794,6 +1823,7 @@ export function AuditLogsScreen() {
 }
 
 export function SettingsScreen() {
+  const { t } = useI18n();
   const [userOffset, setUserOffset] = useState(0);
   const data = usePortalData(settingsResources, { users: paginatedParams(userOffset) });
   const permissions = useRolePermissions();
@@ -1801,30 +1831,30 @@ export function SettingsScreen() {
 
   return (
     <>
-      <PageHeader title="Users, Roles, and Settings" description="Manage platform users, role-based access, and department assignments." />
+      <PageHeader title={t("Users, Roles, and Settings")} description={t("Manage platform users, role-based access, and department assignments.")} />
       <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
-        <Panel title="Users">
+        <Panel title={t("Users")}>
           <DataTable
             rows={data.users}
-            empty="No users found."
+            empty={t("No users found.")}
             columns={[
-              { header: "Name", cell: (row) => <div><div className="font-semibold">{row.name}</div><div className="text-xs text-muted">{row.email}</div></div> },
-              { header: "Role", cell: (row) => row.role },
-              { header: "Department", cell: (row) => data.departments.find((department) => department.id === row.department_id)?.name ?? "Unassigned" },
+              { header: t("Name"), cell: (row) => <div><div className="font-semibold">{row.name}</div><div className="text-xs text-muted">{row.email}</div></div> },
+              { header: t("Role"), cell: (row) => row.role },
+              { header: t("Department"), cell: (row) => data.departments.find((department) => department.id === row.department_id)?.name ?? t("Unassigned") },
             ]}
           />
           <ServerPager offset={userOffset} pageSize={serverPageSize} rows={data.users} total={data.totals.users} onOffsetChange={setUserOffset} />
         </Panel>
         {permissions.canManageAdmin ? (
           <CompactForm
-            title="Create user"
+            title={t("Create user")}
             initialValues={{ name: "", email: "", password: "ChangeMe@123", role: "Manager", department_id: "" }}
             fields={[
-              { name: "name", label: "Name", required: true },
-              { name: "email", label: "Email", type: "email", required: true },
-              { name: "password", label: "Temporary password", type: "password", required: true },
-              { name: "role", label: "Role", type: "select", options: roleOptions, required: true },
-              { name: "department_id", label: "Department", type: "select", options: departmentOptions(data.departments) },
+              { name: "name", label: t("Name"), required: true },
+              { name: "email", label: t("Email"), type: "email", required: true },
+              { name: "password", label: t("Temporary password"), type: "password", required: true },
+              { name: "role", label: t("Role"), type: "select", options: roleOptions, required: true },
+              { name: "department_id", label: t("Department"), type: "select", options: departmentOptions(data.departments) },
             ]}
             onSubmit={async (values) => {
               await apiRequest<User>("/api/users", {
@@ -1834,7 +1864,7 @@ export function SettingsScreen() {
               await data.reload();
             }}
           />
-        ) : <ReadOnlyPanel message="Only Admin users can create users or change role assignments." />}
+        ) : <ReadOnlyPanel message={t("Only Admin users can create users or change role assignments.")} />}
       </div>
     </>
   );

@@ -17,15 +17,15 @@ export type ApiResponse<T> = {
 
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
-  return window.localStorage.getItem("gmp_token");
+  return window.localStorage.getItem("quorum_token");
 }
 
 export function setToken(token: string | null): void {
   if (typeof window === "undefined") return;
   if (token) {
-    window.localStorage.setItem("gmp_token", token);
+    window.localStorage.setItem("quorum_token", token);
   } else {
-    window.localStorage.removeItem("gmp_token");
+    window.localStorage.removeItem("quorum_token");
   }
 }
 
@@ -42,7 +42,7 @@ function tokenIsExpired(token: string): boolean {
 
 function clearExpiredSession(): void {
   setToken(null);
-  window.dispatchEvent(new CustomEvent("gmp:unauthorized"));
+  window.dispatchEvent(new CustomEvent("quorum:unauthorized"));
 }
 
 function shouldClearSession(path: string): boolean {
@@ -80,7 +80,7 @@ export async function apiRequestWithMeta<T>(path: string, options: RequestInit =
     const error = await response.json().catch(() => ({ detail: response.statusText }));
     if (response.status === 401 && shouldClearSession(path) && typeof window !== "undefined") {
       setToken(null);
-      window.dispatchEvent(new CustomEvent("gmp:unauthorized"));
+      window.dispatchEvent(new CustomEvent("quorum:unauthorized"));
     }
     throw new ApiError(error.detail ?? "Request failed", response.status);
   }
@@ -128,7 +128,7 @@ export async function apiUpload<T>(path: string, formData: FormData): Promise<T>
     const error = await response.json().catch(() => ({ detail: response.statusText }));
     if (response.status === 401 && shouldClearSession(path) && typeof window !== "undefined") {
       setToken(null);
-      window.dispatchEvent(new CustomEvent("gmp:unauthorized"));
+      window.dispatchEvent(new CustomEvent("quorum:unauthorized"));
     }
     throw new ApiError(error.detail ?? "Upload failed", response.status);
   }

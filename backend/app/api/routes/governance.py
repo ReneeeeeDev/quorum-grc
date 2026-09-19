@@ -884,7 +884,7 @@ def list_calendar_events(
 @router.get("/calendar-events/export.ics")
 def export_calendar_ics(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> Response:
     events = scoped_query(db, CalendarEvent, current_user).order_by(CalendarEvent.event_date.asc()).all()
-    lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Governance Management Portal//EN"]
+    lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Quorum GRC//EN"]
     for event in events:
         event_date = event.event_date.strftime("%Y%m%d")
         lines.extend(

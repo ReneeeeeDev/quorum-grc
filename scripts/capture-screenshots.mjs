@@ -7,19 +7,21 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const requireFromFrontend = createRequire(path.join(root, "frontend", "package.json"));
 const { chromium } = requireFromFrontend("playwright");
 const outDir = path.join(root, "docs", "screenshots");
-const baseUrl = normalizeUrl(process.env.SCREENSHOT_FRONTEND_URL ?? "https://governance-management-portal-4g7p.vercel.app");
+const baseUrl = normalizeUrl(process.env.SCREENSHOT_FRONTEND_URL ?? "http://127.0.0.1:3000");
+// English files keep their plain names; other languages get a ".<lang>" suffix (01-dashboard.es.png).
+const langs = (process.env.SCREENSHOT_LANGS ?? "en,es").split(",").map((value) => value.trim()).filter(Boolean);
 
 const users = {
   admin: {
-    email: process.env.SCREENSHOT_ADMIN_EMAIL ?? "admin@gmp.local",
+    email: process.env.SCREENSHOT_ADMIN_EMAIL ?? "admin@quorum.local",
     password: process.env.SCREENSHOT_ADMIN_PASSWORD ?? "Admin@123",
   },
   auditor: {
-    email: process.env.SCREENSHOT_AUDITOR_EMAIL ?? "auditor@gmp.local",
+    email: process.env.SCREENSHOT_AUDITOR_EMAIL ?? "auditor@quorum.local",
     password: process.env.SCREENSHOT_AUDITOR_PASSWORD ?? "Auditor@123",
   },
   board: {
-    email: process.env.SCREENSHOT_BOARD_EMAIL ?? "board@gmp.local",
+    email: process.env.SCREENSHOT_BOARD_EMAIL ?? "board@quorum.local",
     password: process.env.SCREENSHOT_BOARD_PASSWORD ?? "Board@123",
   },
 };
@@ -38,20 +40,26 @@ page.setDefaultTimeout(45000);
 const captured = [];
 
 try {
-  await login(users.admin);
-  await screenshot("/dashboard", "01-dashboard.png");
-  await screenshot("/policies", "02-policies-pagination.png");
-  await screenshot("/actions", "03-action-items.png");
-  await screenshot("/notifications", "04-notifications.png");
-  await screenshot("/audit-logs", "05-audit-logs.png");
+  for (const lang of langs) {
+    await useLanguage(lang);
+    const suffix = lang === "en" ? "" : `.${lang}`;
 
-  await clearSession();
-  await login(users.auditor);
-  await screenshot("/policies", "06-auditor-read-only.png");
+    await clearSession();
+    await login(users.admin);
+    await screenshot("/dashboard", `01-dashboard${suffix}.png`);
+    await screenshot("/policies", `02-policies-pagination${suffix}.png`);
+    await screenshot("/actions", `03-action-items${suffix}.png`);
+    await screenshot("/notifications", `04-notifications${suffix}.png`);
+    await screenshot("/audit-logs", `05-audit-logs${suffix}.png`);
 
-  await clearSession();
-  await login(users.board);
-  await screenshot("/policies", "07-board-member-view.png");
+    await clearSession();
+    await login(users.auditor);
+    await screenshot("/policies", `06-auditor-read-only${suffix}.png`);
+
+    await clearSession();
+    await login(users.board);
+    await screenshot("/policies", `07-board-member-view${suffix}.png`);
+  }
 } finally {
   await browser.close();
 }
@@ -80,7 +88,12 @@ async function screenshot(route, file) {
 }
 
 async function clearSession() {
-  await page.evaluate(() => window.localStorage.removeItem("gmp_token")).catch(() => undefined);
+  await page.evaluate(() => window.localStorage.removeItem("quorum_token")).catch(() => undefined);
+}
+
+// Runs before the app boots on every navigation, so the portal mounts already in the requested language.
+async function useLanguage(lang) {
+  await page.addInitScript((value) => window.localStorage.setItem("quorum_lang", value), lang);
 }
 
 function normalizeUrl(value) {

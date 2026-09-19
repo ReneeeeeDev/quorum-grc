@@ -4,9 +4,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    app_name: str = "Governance Management Portal"
+    app_name: str = "Quorum GRC"
     environment: str = "development"
-    database_url: str = "postgresql+psycopg://governance:governance@localhost:5432/governance_portal"
+    database_url: str = "postgresql+psycopg://quorum:quorum@localhost:5432/quorum_grc"
     redis_url: str = "redis://localhost:6379/0"
     jwt_secret_key: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"

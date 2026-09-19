@@ -13,7 +13,7 @@ Smoke flow:
 
 1. Start PostgreSQL and Redis with `docker compose up -d postgres redis`.
 2. Start the backend.
-3. Log in with `admin@gmp.local` / `Admin@123`.
+3. Log in with `admin@quorum.local` / `Admin@123`.
 4. Create a policy, meeting, decision, and action item.
 5. Confirm `/api/reports` updates and `/api/audit-logs` records mutating actions.
 6. Upload a document through `/api/documents/upload`.

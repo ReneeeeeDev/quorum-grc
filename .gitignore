@@ -31,4 +31,8 @@ postgres-data/
 redis-data/
 backend/storage/
 backend/local-dev.db*
-backend/gmp_*.db*
+backend/quorum_*.db*
+
+# Playwright
+frontend/test-results/
+frontend/playwright-report/

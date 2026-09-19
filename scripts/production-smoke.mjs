@@ -1,6 +1,6 @@
 const frontendUrl = normalizeUrl(process.env.PRODUCTION_FRONTEND_URL);
 const backendUrl = normalizeUrl(process.env.PRODUCTION_BACKEND_URL);
-const smokeEmail = process.env.SMOKE_EMAIL ?? "admin@gmp.local";
+const smokeEmail = process.env.SMOKE_EMAIL ?? "admin@quorum.local";
 const smokePassword = process.env.SMOKE_PASSWORD ?? "Admin@123";
 
 const frontendRoutes = [

@@ -14,16 +14,18 @@ Recommended files:
 - `06-auditor-read-only.png`
 - `07-board-member-view.png`
 
+Each file also has a Spanish variant with a `.es.png` suffix (for example `01-dashboard.es.png`), used by the Spanish README. The capture script takes `SCREENSHOT_LANGS` (default `en,es`).
+
 Use the flow in [Demo Script](../demo-script.md) so the screenshots tell the same story as the walkthrough.
 
 Refresh all screenshots with:
 
 ```bash
-SCREENSHOT_FRONTEND_URL=https://governance-management-portal-4g7p.vercel.app node scripts/capture-screenshots.mjs
+SCREENSHOT_FRONTEND_URL=https://<your-frontend>.vercel.app SCREENSHOT_LANGS=en,es node scripts/capture-screenshots.mjs
 ```
 
 Refresh the complete portfolio screenshot pack with:
 
 ```bash
-SCREENSHOT_FRONTEND_URL=https://governance-management-portal-4g7p.vercel.app node scripts/capture-linkedin-screenshots.mjs
+SCREENSHOT_FRONTEND_URL=https://<your-frontend>.vercel.app node scripts/capture-linkedin-screenshots.mjs
 ```

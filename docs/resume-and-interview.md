@@ -2,7 +2,7 @@
 
 ## Resume Impact
 
-Developed a Governance Management Portal enabling policy lifecycle management, committee governance, decision tracking, action management, compliance obligation monitoring, audit logging, and enterprise reporting using Next.js, FastAPI, PostgreSQL, Docker, and Redis.
+Developed Quorum GRC, an enterprise GRC platform enabling policy lifecycle management, committee governance, decision tracking, action management, compliance obligation monitoring, audit logging, and enterprise reporting using Next.js, FastAPI, PostgreSQL, Docker, and Redis.
 
 ## Interview Questions
 
